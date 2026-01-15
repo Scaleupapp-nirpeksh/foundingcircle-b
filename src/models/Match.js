@@ -190,7 +190,7 @@ const matchSchema = new Schema(
     interest: {
       type: Schema.Types.ObjectId,
       ref: 'Interest',
-      required: [true, 'Interest reference is required'],
+      
     },
 
     // ==========================================

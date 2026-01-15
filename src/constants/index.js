@@ -208,11 +208,30 @@ const USER_TYPES = Object.freeze({
    * Status of a match between founder and builder
    */
   const MATCH_STATUS = Object.freeze({
-    ACTIVE: 'ACTIVE',
-    IN_TRIAL: 'IN_TRIAL',
-    COMPLETED: 'COMPLETED',
-    HIRED: 'HIRED',
-    ENDED: 'ENDED',
+    // Matching phase statuses
+    PENDING: 'PENDING',       // Match generated, no action yet
+    LIKED: 'LIKED',           // One party has liked
+    SKIPPED: 'SKIPPED',       // One party skipped
+    MUTUAL: 'MUTUAL',         // Both parties liked - mutual interest
+    
+    // Post-match phase statuses
+    ACTIVE: 'ACTIVE',         // Active conversation
+    IN_TRIAL: 'IN_TRIAL',     // During trial collaboration
+    COMPLETED: 'COMPLETED',   // Trial completed
+    HIRED: 'HIRED',           // Successful hire
+    ENDED: 'ENDED',           // Ended without hire
+    
+    // Other
+    EXPIRED: 'EXPIRED',       // Match expired without action
+  });
+
+  /**
+ * Actions a user can take on a match
+ */
+const MATCH_ACTIONS = Object.freeze({
+    LIKE: 'LIKE',
+    SKIP: 'SKIP',
+    SAVE: 'SAVE',
   });
   
   // ============================================
@@ -478,6 +497,7 @@ const USER_TYPES = Object.freeze({
     
     // Match constants
     MATCH_STATUS,
+    MATCH_ACTIONS,
     
     // Conversation constants
     CONVERSATION_STATUS,
