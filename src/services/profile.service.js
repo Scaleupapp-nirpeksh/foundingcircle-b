@@ -3,6 +3,8 @@
  * 
  * Handles Founder and Builder profile management:
  * - Profile creation and updates
+ * - Dual profile support (Founder + Builder)
+ * - Role switching
  * - Onboarding flow
  * - Scenario responses
  * - Profile completion tracking
@@ -20,23 +22,105 @@ const logger = require('../utils/logger');
 // ============================================
 
 /**
- * Create or update founder profile
+ * Create founder profile for a user
+ * Supports dual profile - user can have both Founder and Builder profiles
  * 
  * @param {string} userId - User ID
  * @param {Object} profileData - Profile data
- * @returns {Promise<Object>} Created/updated profile
- * @throws {ApiError} If user not found or not a founder
+ * @returns {Promise<Object>} Created profile
+ * @throws {ApiError} If user not found or profile already exists
  */
-const upsertFounderProfile = async (userId, profileData) => {
-  // Verify user exists and is a founder
+const createFounderProfile = async (userId, profileData) => {
   const user = await User.findById(userId);
   
   if (!user) {
     throw ApiError.userNotFound();
   }
   
-  if (user.userType !== USER_TYPES.FOUNDER) {
-    throw ApiError.badRequest('User is not a founder');
+  if (user.founderProfile) {
+    throw ApiError.conflict('Founder profile already exists');
+  }
+  
+  const profile = await FounderProfile.create({
+    user: userId,
+    ...profileData,
+  });
+  
+  // Update user
+  user.founderProfile = profile._id;
+  
+  // Set active role if not set
+  if (!user.activeRole) {
+    user.activeRole = 'FOUNDER';
+  }
+  
+  // Set userType if this is their first profile
+  if (!user.builderProfile) {
+    user.userType = USER_TYPES.FOUNDER;
+  }
+  
+  // Check if onboarding should be marked complete
+  if (profile.isComplete && !user.onboardingComplete) {
+    user.onboardingComplete = true;
+    user.onboardingCompletedAt = new Date();
+  }
+  
+  await user.save();
+  
+  logger.info('Founder profile created', { userId, profileId: profile._id });
+  
+  return profile;
+};
+
+/**
+ * Update existing founder profile
+ * 
+ * @param {string} userId - User ID
+ * @param {Object} profileData - Profile data to update
+ * @returns {Promise<Object>} Updated profile
+ * @throws {ApiError} If user or profile not found
+ */
+const updateFounderProfile = async (userId, profileData) => {
+  const user = await User.findById(userId);
+  
+  if (!user) {
+    throw ApiError.userNotFound();
+  }
+  
+  const profile = await FounderProfile.findOne({ user: userId });
+  
+  if (!profile) {
+    throw ApiError.notFound('Founder profile not found');
+  }
+  
+  // Update profile fields
+  Object.assign(profile, profileData);
+  await profile.save();
+  
+  // Check if onboarding should be marked complete
+  if (profile.isComplete && !user.onboardingComplete) {
+    user.onboardingComplete = true;
+    user.onboardingCompletedAt = new Date();
+    await user.save();
+  }
+  
+  logger.info('Founder profile updated', { userId });
+  
+  return profile;
+};
+
+/**
+ * Create or update founder profile (upsert)
+ * 
+ * @param {string} userId - User ID
+ * @param {Object} profileData - Profile data
+ * @returns {Promise<Object>} Created/updated profile
+ */
+const upsertFounderProfile = async (userId, profileData) => {
+  const user = await User.findById(userId);
+  
+  if (!user) {
+    throw ApiError.userNotFound();
   }
   
   // Check if profile exists
@@ -53,6 +137,20 @@ const upsertFounderProfile = async (userId, profileData) => {
       user: userId,
       ...profileData,
     });
+    
+    // Update user
+    user.founderProfile = profile._id;
+    
+    // Set active role if not set
+    if (!user.activeRole) {
+      user.activeRole = 'FOUNDER';
+    }
+    
+    // Set userType if this is their first profile
+    if (!user.builderProfile) {
+      user.userType = USER_TYPES.FOUNDER;
+    }
+    
     logger.info('Founder profile created', { userId });
   }
   
@@ -60,9 +158,10 @@ const upsertFounderProfile = async (userId, profileData) => {
   if (profile.isComplete && !user.onboardingComplete) {
     user.onboardingComplete = true;
     user.onboardingCompletedAt = new Date();
-    await user.save();
     logger.info('Founder onboarding completed', { userId });
   }
+  
+  await user.save();
   
   return profile;
 };
@@ -75,7 +174,8 @@ const upsertFounderProfile = async (userId, profileData) => {
  * @throws {ApiError} If profile not found
  */
 const getFounderProfile = async (userId) => {
-  const profile = await FounderProfile.findOne({ user: userId }).populate('user', 'email name avatarUrl');
+  const profile = await FounderProfile.findOne({ user: userId })
+    .populate('user', 'email name avatarUrl');
   
   if (!profile) {
     throw ApiError.notFound('Founder profile not found');
@@ -92,7 +192,8 @@ const getFounderProfile = async (userId) => {
  * @throws {ApiError} If profile not found
  */
 const getFounderProfileById = async (profileId) => {
-  const profile = await FounderProfile.findById(profileId).populate('user', 'email name avatarUrl');
+  const profile = await FounderProfile.findById(profileId)
+    .populate('user', 'email name avatarUrl');
   
   if (!profile) {
     throw ApiError.notFound('Founder profile not found');
@@ -124,8 +225,8 @@ const getFounderProfileCompletion = async (userId) => {
   if (!profile.startupStage) missing.push('Startup Stage');
   if (!profile.hoursPerWeek) missing.push('Weekly Commitment');
   if (!profile.rolesSeeking?.length) missing.push('Roles Seeking');
-  if (!profile.equityRange?.min === undefined) missing.push('Equity Range');
-  if (!profile.cashRange?.min === undefined) missing.push('Cash Range');
+  if (profile.equityRange?.min === undefined) missing.push('Equity Range');
+  if (profile.cashRange?.min === undefined) missing.push('Cash Range');
   if (!profile.vestingType) missing.push('Vesting Type');
   if (!profile.intentStatement || profile.intentStatement.length < 50) missing.push('Intent Statement');
   if (!profile.remotePreference) missing.push('Remote Preference');
@@ -143,23 +244,105 @@ const getFounderProfileCompletion = async (userId) => {
 // ============================================
 
 /**
- * Create or update builder profile
+ * Create builder profile for a user
+ * Supports dual profile - user can have both Founder and Builder profiles
  * 
  * @param {string} userId - User ID
  * @param {Object} profileData - Profile data
- * @returns {Promise<Object>} Created/updated profile
- * @throws {ApiError} If user not found or not a builder
+ * @returns {Promise<Object>} Created profile
+ * @throws {ApiError} If user not found or profile already exists
  */
-const upsertBuilderProfile = async (userId, profileData) => {
-  // Verify user exists and is a builder
+const createBuilderProfile = async (userId, profileData) => {
   const user = await User.findById(userId);
   
   if (!user) {
     throw ApiError.userNotFound();
   }
   
-  if (user.userType !== USER_TYPES.BUILDER) {
-    throw ApiError.badRequest('User is not a builder');
+  if (user.builderProfile) {
+    throw ApiError.conflict('Builder profile already exists');
+  }
+  
+  const profile = await BuilderProfile.create({
+    user: userId,
+    ...profileData,
+  });
+  
+  // Update user
+  user.builderProfile = profile._id;
+  
+  // Set active role if not set
+  if (!user.activeRole) {
+    user.activeRole = 'BUILDER';
+  }
+  
+  // Set userType if this is their first profile
+  if (!user.founderProfile) {
+    user.userType = USER_TYPES.BUILDER;
+  }
+  
+  // Check if onboarding should be marked complete
+  if (profile.isComplete && !user.onboardingComplete) {
+    user.onboardingComplete = true;
+    user.onboardingCompletedAt = new Date();
+  }
+  
+  await user.save();
+  
+  logger.info('Builder profile created', { userId, profileId: profile._id });
+  
+  return profile;
+};
+
+/**
+ * Update existing builder profile
+ * 
+ * @param {string} userId - User ID
+ * @param {Object} profileData - Profile data to update
+ * @returns {Promise<Object>} Updated profile
+ * @throws {ApiError} If user or profile not found
+ */
+const updateBuilderProfile = async (userId, profileData) => {
+  const user = await User.findById(userId);
+  
+  if (!user) {
+    throw ApiError.userNotFound();
+  }
+  
+  const profile = await BuilderProfile.findOne({ user: userId });
+  
+  if (!profile) {
+    throw ApiError.notFound('Builder profile not found');
+  }
+  
+  // Update profile fields
+  Object.assign(profile, profileData);
+  await profile.save();
+  
+  // Check if onboarding should be marked complete
+  if (profile.isComplete && !user.onboardingComplete) {
+    user.onboardingComplete = true;
+    user.onboardingCompletedAt = new Date();
+    await user.save();
+  }
+  
+  logger.info('Builder profile updated', { userId });
+  
+  return profile;
+};
+
+/**
+ * Create or update builder profile (upsert)
+ * 
+ * @param {string} userId - User ID
+ * @param {Object} profileData - Profile data
+ * @returns {Promise<Object>} Created/updated profile
+ */
+const upsertBuilderProfile = async (userId, profileData) => {
+  const user = await User.findById(userId);
+  
+  if (!user) {
+    throw ApiError.userNotFound();
   }
   
   // Check if profile exists
@@ -176,6 +359,20 @@ const upsertBuilderProfile = async (userId, profileData) => {
       user: userId,
       ...profileData,
     });
+    
+    // Update user
+    user.builderProfile = profile._id;
+    
+    // Set active role if not set
+    if (!user.activeRole) {
+      user.activeRole = 'BUILDER';
+    }
+    
+    // Set userType if this is their first profile
+    if (!user.founderProfile) {
+      user.userType = USER_TYPES.BUILDER;
+    }
+    
     logger.info('Builder profile created', { userId });
   }
   
@@ -183,9 +380,10 @@ const upsertBuilderProfile = async (userId, profileData) => {
   if (profile.isComplete && !user.onboardingComplete) {
     user.onboardingComplete = true;
     user.onboardingCompletedAt = new Date();
-    await user.save();
     logger.info('Builder onboarding completed', { userId });
   }
+  
+  await user.save();
   
   return profile;
 };
@@ -198,7 +396,8 @@ const upsertBuilderProfile = async (userId, profileData) => {
  * @throws {ApiError} If profile not found
  */
 const getBuilderProfile = async (userId) => {
-  const profile = await BuilderProfile.findOne({ user: userId }).populate('user', 'email name avatarUrl');
+  const profile = await BuilderProfile.findOne({ user: userId })
+    .populate('user', 'email name avatarUrl');
   
   if (!profile) {
     throw ApiError.notFound('Builder profile not found');
@@ -215,7 +414,8 @@ const getBuilderProfile = async (userId) => {
  * @throws {ApiError} If profile not found
  */
 const getBuilderProfileById = async (profileId) => {
-  const profile = await BuilderProfile.findById(profileId).populate('user', 'email name avatarUrl');
+  const profile = await BuilderProfile.findById(profileId)
+    .populate('user', 'email name avatarUrl');
   
   if (!profile) {
     throw ApiError.notFound('Builder profile not found');
@@ -261,11 +461,201 @@ const getBuilderProfileCompletion = async (userId) => {
 };
 
 // ============================================
+// DUAL PROFILE MANAGEMENT
+// ============================================
+
+/**
+ * Add a secondary profile to an existing user (dual profile)
+ * Allows Founders to also be Builders and vice versa
+ * 
+ * @param {string} userId - User ID
+ * @param {string} profileType - 'FOUNDER' or 'BUILDER'
+ * @param {Object} profileData - Profile data
+ * @returns {Promise<Object>} Created profile
+ */
+const addSecondaryProfile = async (userId, profileType, profileData) => {
+  const user = await User.findById(userId);
+  
+  if (!user) {
+    throw ApiError.userNotFound();
+  }
+  
+  if (profileType === 'FOUNDER') {
+    if (user.founderProfile) {
+      throw ApiError.conflict('Founder profile already exists');
+    }
+    return createFounderProfile(userId, profileData);
+  } else if (profileType === 'BUILDER') {
+    if (user.builderProfile) {
+      throw ApiError.conflict('Builder profile already exists');
+    }
+    return createBuilderProfile(userId, profileData);
+  } else {
+    throw ApiError.badRequest('Invalid profile type. Must be FOUNDER or BUILDER');
+  }
+};
+
+/**
+ * Switch user's active role
+ * 
+ * @param {string} userId - User ID
+ * @param {string} role - 'FOUNDER' or 'BUILDER'
+ * @returns {Promise<Object>} Updated user
+ */
+const switchActiveRole = async (userId, role) => {
+  const user = await User.findById(userId);
+  
+  if (!user) {
+    throw ApiError.userNotFound();
+  }
+  
+  if (!['FOUNDER', 'BUILDER'].includes(role)) {
+    throw ApiError.badRequest('Invalid role. Must be FOUNDER or BUILDER');
+  }
+  
+  if (role === 'FOUNDER' && !user.founderProfile) {
+    throw ApiError.badRequest('You need a founder profile to switch to founder mode. Create one first.');
+  }
+  
+  if (role === 'BUILDER' && !user.builderProfile) {
+    throw ApiError.badRequest('You need a builder profile to switch to builder mode. Create one first.');
+  }
+  
+  user.activeRole = role;
+  await user.save();
+  
+  logger.info('User switched role', { userId, newRole: role });
+  
+  return user;
+};
+
+/**
+ * Get user's current active profile
+ * 
+ * @param {string} userId - User ID
+ * @returns {Promise<Object>} Active profile with type info
+ */
+const getActiveProfile = async (userId) => {
+  const user = await User.findById(userId)
+    .populate('founderProfile')
+    .populate('builderProfile');
+  
+  if (!user) {
+    throw ApiError.userNotFound();
+  }
+  
+  if (user.activeRole === 'FOUNDER' && user.founderProfile) {
+    return {
+      type: 'FOUNDER',
+      profile: user.founderProfile,
+    };
+  } else if (user.activeRole === 'BUILDER' && user.builderProfile) {
+    return {
+      type: 'BUILDER',
+      profile: user.builderProfile,
+    };
+  }
+  
+  // Default to whichever exists
+  if (user.founderProfile) {
+    return {
+      type: 'FOUNDER',
+      profile: user.founderProfile,
+    };
+  }
+  
+  if (user.builderProfile) {
+    return {
+      type: 'BUILDER',
+      profile: user.builderProfile,
+    };
+  }
+  
+  throw ApiError.badRequest('No profile exists for this user');
+};
+
+/**
+ * Get both profiles for a user
+ * 
+ * @param {string} userId - User ID
+ * @returns {Promise<Object>} Both profiles with metadata
+ */
+const getUserProfiles = async (userId) => {
+  const user = await User.findById(userId)
+    .populate('founderProfile')
+    .populate('builderProfile');
+  
+  if (!user) {
+    throw ApiError.userNotFound();
+  }
+  
+  return {
+    userId: user._id,
+    email: user.email,
+    name: user.name,
+    activeRole: user.activeRole,
+    hasDualProfile: !!(user.founderProfile && user.builderProfile),
+    canSwitchRoles: !!(user.founderProfile && user.builderProfile),
+    founderProfile: user.founderProfile || null,
+    builderProfile: user.builderProfile || null,
+  };
+};
+
+/**
+ * Check if user can create a specific profile type
+ * 
+ * @param {string} userId - User ID
+ * @param {string} profileType - 'FOUNDER' or 'BUILDER'
+ * @returns {Promise<Object>} Can create and reason
+ */
+const canCreateProfile = async (userId, profileType) => {
+  const user = await User.findById(userId);
+  
+  if (!user) {
+    return {
+      canCreate: false,
+      reason: 'User not found',
+    };
+  }
+  
+  if (profileType === 'FOUNDER') {
+    if (user.founderProfile) {
+      return {
+        canCreate: false,
+        reason: 'Founder profile already exists',
+      };
+    }
+    return {
+      canCreate: true,
+      reason: null,
+    };
+  }
+  
+  if (profileType === 'BUILDER') {
+    if (user.builderProfile) {
+      return {
+        canCreate: false,
+        reason: 'Builder profile already exists',
+      };
+    }
+    return {
+      canCreate: true,
+      reason: null,
+    };
+  }
+  
+  return {
+    canCreate: false,
+    reason: 'Invalid profile type',
+  };
+};
+
+// ============================================
 // GENERIC PROFILE FUNCTIONS
 // ============================================
 
 /**
- * Get profile by user ID (auto-detects type)
+ * Get profile by user ID (auto-detects type based on active role)
  * 
  * @param {string} userId - User ID
  * @returns {Promise<Object>} Profile with type info
@@ -280,16 +670,39 @@ const getProfileByUserId = async (userId) => {
   
   let profile = null;
   let completion = null;
+  let profileType = null;
   
-  if (user.userType === USER_TYPES.FOUNDER) {
+  // Try to get profile based on active role first, then fallback to userType
+  const roleToCheck = user.activeRole || user.userType;
+  
+  if (roleToCheck === 'FOUNDER' || roleToCheck === USER_TYPES.FOUNDER) {
     profile = await FounderProfile.findOne({ user: userId });
     if (profile) {
+      profileType = 'FOUNDER';
       completion = await getFounderProfileCompletion(userId);
     }
-  } else if (user.userType === USER_TYPES.BUILDER) {
+  }
+  
+  if (!profile && (roleToCheck === 'BUILDER' || roleToCheck === USER_TYPES.BUILDER)) {
     profile = await BuilderProfile.findOne({ user: userId });
     if (profile) {
+      profileType = 'BUILDER';
       completion = await getBuilderProfileCompletion(userId);
+    }
+  }
+  
+  // If still no profile, try the other type
+  if (!profile) {
+    profile = await FounderProfile.findOne({ user: userId });
+    if (profile) {
+      profileType = 'FOUNDER';
+      completion = await getFounderProfileCompletion(userId);
+    } else {
+      profile = await BuilderProfile.findOne({ user: userId });
+      if (profile) {
+        profileType = 'BUILDER';
+        completion = await getBuilderProfileCompletion(userId);
+      }
     }
   }
   
@@ -299,30 +712,37 @@ const getProfileByUserId = async (userId) => {
       email: user.email,
       name: user.name,
       userType: user.userType,
+      activeRole: user.activeRole,
       onboardingComplete: user.onboardingComplete,
+      hasDualProfile: !!(user.founderProfile && user.builderProfile),
     },
+    profileType,
     profile: profile ? profile.toObject() : null,
     completion,
   };
 };
 
 /**
- * Update profile based on user type
+ * Update profile based on user type or specified type
  * 
  * @param {string} userId - User ID
  * @param {Object} profileData - Profile data
+ * @param {string} [profileType] - Optional: 'FOUNDER' or 'BUILDER'
  * @returns {Promise<Object>} Updated profile
  */
-const updateProfile = async (userId, profileData) => {
+const updateProfile = async (userId, profileData, profileType = null) => {
   const user = await User.findById(userId);
   
   if (!user) {
     throw ApiError.userNotFound();
   }
   
-  if (user.userType === USER_TYPES.FOUNDER) {
+  // Determine which profile to update
+  const typeToUpdate = profileType || user.activeRole || user.userType;
+  
+  if (typeToUpdate === 'FOUNDER' || typeToUpdate === USER_TYPES.FOUNDER) {
     return upsertFounderProfile(userId, profileData);
-  } else if (user.userType === USER_TYPES.BUILDER) {
+  } else if (typeToUpdate === 'BUILDER' || typeToUpdate === USER_TYPES.BUILDER) {
     return upsertBuilderProfile(userId, profileData);
   }
   
@@ -486,6 +906,7 @@ const calculateScenarioCompatibility = async (userId1, userId2) => {
  * @param {string[]} [filters.compensationOpenness] - Compensation preferences
  * @param {number} [filters.minHours] - Minimum hours per week
  * @param {string} [filters.location] - Location
+ * @param {string[]} [filters.rolesInterested] - Roles interested in
  * @param {Object} [options={}] - Pagination options
  * @returns {Promise<Object>} Paginated builder profiles
  */
@@ -521,6 +942,11 @@ const searchBuilderProfiles = async (filters = {}, options = {}) => {
   // Location filter (case-insensitive partial match)
   if (filters.location) {
     query['location.city'] = new RegExp(filters.location, 'i');
+  }
+  
+  // Roles interested filter
+  if (filters.rolesInterested && filters.rolesInterested.length > 0) {
+    query.rolesInterested = { $in: filters.rolesInterested };
   }
   
   const skip = (page - 1) * limit;
@@ -622,16 +1048,27 @@ const searchFounderProfiles = async (filters = {}, options = {}) => {
 
 module.exports = {
   // Founder profile
+  createFounderProfile,
+  updateFounderProfile,
   upsertFounderProfile,
   getFounderProfile,
   getFounderProfileById,
   getFounderProfileCompletion,
   
   // Builder profile
+  createBuilderProfile,
+  updateBuilderProfile,
   upsertBuilderProfile,
   getBuilderProfile,
   getBuilderProfileById,
   getBuilderProfileCompletion,
+  
+  // Dual profile management
+  addSecondaryProfile,
+  switchActiveRole,
+  getActiveProfile,
+  getUserProfiles,
+  canCreateProfile,
   
   // Generic
   getProfileByUserId,

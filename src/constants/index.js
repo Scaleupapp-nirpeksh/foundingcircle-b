@@ -13,6 +13,9 @@
 
 /**
  * Types of users on the platform
+ * Note: Users can have both FOUNDER and BUILDER profiles
+ * userType indicates primary registration type
+ * activeRole indicates current operating mode
  */
 const USER_TYPES = Object.freeze({
     FOUNDER: 'FOUNDER',

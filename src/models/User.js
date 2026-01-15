@@ -121,23 +121,36 @@ const userSchema = new Schema(
     // PROFILE REFERENCES
     // ==========================================
 
-    /**
-     * Reference to FounderProfile (if userType is FOUNDER)
+       /**
+     * Reference to FounderProfile (can have both profiles)
      */
-    founderProfile: {
-      type: Schema.Types.ObjectId,
-      ref: 'FounderProfile',
-      default: null,
-    },
-
-    /**
-     * Reference to BuilderProfile (if userType is BUILDER)
-     */
-    builderProfile: {
-      type: Schema.Types.ObjectId,
-      ref: 'BuilderProfile',
-      default: null,
-    },
+       founderProfile: {
+        type: Schema.Types.ObjectId,
+        ref: 'FounderProfile',
+        default: null,
+      },
+  
+      /**
+       * Reference to BuilderProfile (can have both profiles)
+       */
+      builderProfile: {
+        type: Schema.Types.ObjectId,
+        ref: 'BuilderProfile',
+        default: null,
+      },
+  
+      /**
+       * Primary/active role for the user
+       * User can switch between roles if they have both profiles
+       */
+      activeRole: {
+        type: String,
+        enum: {
+          values: ['FOUNDER', 'BUILDER'],
+          message: 'Active role must be FOUNDER or BUILDER',
+        },
+        default: null,
+      },
 
     // ==========================================
     // SUBSCRIPTION
@@ -471,6 +484,46 @@ userSchema.virtual('isPremium').get(function () {
   const premiumTiers = [SUBSCRIPTION_TIERS.FOUNDER_PRO, SUBSCRIPTION_TIERS.BUILDER_BOOST];
   return premiumTiers.includes(this.subscriptionTier) && this.isSubscriptionActive;
 });
+
+// Add to VIRTUAL FIELDS section:
+
+/**
+ * Virtual field: Has both profiles (can act as either)
+ */
+userSchema.virtual('hasDualProfile').get(function () {
+    return !!(this.founderProfile && this.builderProfile);
+  });
+  
+  /**
+   * Virtual field: Can switch roles
+   */
+  userSchema.virtual('canSwitchRoles').get(function () {
+    return this.hasDualProfile;
+  });
+  
+  // Add to INSTANCE METHODS section:
+  
+  /**
+   * Switch active role
+   * @param {string} role - 'FOUNDER' or 'BUILDER'
+   * @returns {Promise<User>}
+   */
+  userSchema.methods.switchRole = async function (role) {
+    if (!['FOUNDER', 'BUILDER'].includes(role)) {
+      throw new Error('Invalid role');
+    }
+    
+    if (role === 'FOUNDER' && !this.founderProfile) {
+      throw new Error('No founder profile exists');
+    }
+    
+    if (role === 'BUILDER' && !this.builderProfile) {
+      throw new Error('No builder profile exists');
+    }
+    
+    this.activeRole = role;
+    return this.save();
+  };
 
 // ============================================
 // PRE-SAVE MIDDLEWARE
