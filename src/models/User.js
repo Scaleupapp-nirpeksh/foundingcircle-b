@@ -51,7 +51,7 @@ const userSchema = new Schema(
      */
     password: {
       type: String,
-      required: [true, 'Password is required'],
+      required: false, 
       minlength: [8, 'Password must be at least 8 characters'],
       select: false, // Don't include in query results by default
     },
