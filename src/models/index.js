@@ -36,6 +36,13 @@ const BuilderProfile = require('./BuilderProfile');
 // ASSESSMENT MODELS
 // ============================================
 
+// Communication models
+const Conversation = require('./Conversation');
+const Message = require('./Message');
+
+// Trial model
+const Trial = require('./Trial');
+
 /**
  * ScenarioResponse model - Working style compatibility quiz
  * Handles: 6 scenario responses, compatibility scoring
@@ -76,6 +83,14 @@ module.exports = {
   
   // Assessment models
   ScenarioResponse,
+  
+
+  // Communication models
+  Conversation,
+  Message,
+
+  // Trial model
+  Trial,
   
   // Matching models
   Opening,

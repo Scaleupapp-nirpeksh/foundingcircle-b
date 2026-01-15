@@ -21,6 +21,33 @@ const USER_TYPES = Object.freeze({
   });
   
   // ============================================
+  // USER STATUS
+  // ============================================
+  
+  /**
+   * Account status for users
+   */
+  const USER_STATUS = Object.freeze({
+    ACTIVE: 'ACTIVE',
+    SUSPENDED: 'SUSPENDED',
+    BANNED: 'BANNED',
+    DELETED: 'DELETED',
+  });
+  
+  // ============================================
+  // SUBSCRIPTION TIERS
+  // ============================================
+  
+  /**
+   * Subscription tiers for users
+   */
+  const SUBSCRIPTION_TIERS = Object.freeze({
+    FREE: 'FREE',
+    FOUNDER_PRO: 'FOUNDER_PRO',
+    BUILDER_BOOST: 'BUILDER_BOOST',
+  });
+  
+  // ============================================
   // STARTUP STAGES
   // ============================================
   
@@ -186,6 +213,52 @@ const USER_TYPES = Object.freeze({
   });
   
   // ============================================
+  // CONVERSATION STATUS
+  // ============================================
+  
+  /**
+   * Status of a conversation
+   */
+  const CONVERSATION_STATUS = Object.freeze({
+    ACTIVE: 'ACTIVE',
+    ARCHIVED: 'ARCHIVED',
+  });
+  
+  // ============================================
+  // MESSAGE TYPES
+  // ============================================
+  
+  /**
+   * Types of messages in conversations
+   */
+  const MESSAGE_TYPES = Object.freeze({
+    TEXT: 'TEXT',
+    SYSTEM: 'SYSTEM',
+    ICE_BREAKER: 'ICE_BREAKER',
+    TRIAL_PROPOSAL: 'TRIAL_PROPOSAL',
+    TRIAL_UPDATE: 'TRIAL_UPDATE',
+    ATTACHMENT: 'ATTACHMENT',
+  });
+  
+  // ============================================
+  // ICE BREAKER PROMPTS
+  // ============================================
+  
+  /**
+   * Ice breaker prompts for starting conversations (per PRD)
+   */
+  const ICE_BREAKER_PROMPTS = Object.freeze([
+    "What excited you most about the other person's profile?",
+    "What's one question you'd want answered before working together?",
+    "If you could work on any problem, what would it be and why?",
+    "What's the most important thing you look for in a co-founder or early team member?",
+    "What's a project you're most proud of and why?",
+    "How do you handle disagreements when working on a team?",
+    "What does your ideal work day look like?",
+    "What's something you've learned recently that changed how you think?",
+  ]);
+  
+  // ============================================
   // TRIAL STATUS
   // ============================================
   
@@ -200,30 +273,38 @@ const USER_TYPES = Object.freeze({
   });
   
   // ============================================
-// USER STATUS
-// ============================================
-
-/**
- * Account status for users
- */
-const USER_STATUS = Object.freeze({
-    ACTIVE: 'ACTIVE',
-    SUSPENDED: 'SUSPENDED',
-    BANNED: 'BANNED',
-    DELETED: 'DELETED',
-  });
-
-  // ============================================
-  // SUBSCRIPTION TIERS
+  // TRIAL DURATIONS
   // ============================================
   
   /**
-   * Subscription tiers for users
+   * Available trial duration options in days (per PRD)
    */
-  const SUBSCRIPTION_TIERS = Object.freeze({
-    FREE: 'FREE',
-    FOUNDER_PRO: 'FOUNDER_PRO',
-    BUILDER_BOOST: 'BUILDER_BOOST',
+  const TRIAL_DURATIONS = Object.freeze([7, 14, 21]);
+  
+  // ============================================
+  // CHECKIN FREQUENCY
+  // ============================================
+  
+  /**
+   * Check-in frequency options for trials
+   */
+  const CHECKIN_FREQUENCY = Object.freeze({
+    DAILY: 'DAILY',
+    WEEKLY: 'WEEKLY',
+    NONE: 'NONE',
+  });
+  
+  // ============================================
+  // TRIAL OUTCOME
+  // ============================================
+  
+  /**
+   * Possible outcomes of a trial
+   */
+  const TRIAL_OUTCOME = Object.freeze({
+    CONTINUE: 'CONTINUE',
+    END: 'END',
+    PENDING: 'PENDING',
   });
   
   // ============================================
@@ -255,6 +336,7 @@ const USER_STATUS = Object.freeze({
     FREE_DAILY_MATCHES: 5,
     FREE_SAVED_PROFILES: 10,
     FREE_ACTIVE_LISTINGS: 1,
+    FREE_DAILY_INTERESTS: 5,
     
     // Pro tier limits
     PRO_DAILY_MATCHES: -1, // unlimited
@@ -264,6 +346,7 @@ const USER_STATUS = Object.freeze({
     // Builder boost limits
     BOOST_DAILY_MATCHES: 15,
     BOOST_SAVED_PROFILES: 50,
+    BOOST_DAILY_INTERESTS: 15,
     
     // General limits
     MAX_SKILLS: 20,
@@ -271,6 +354,7 @@ const USER_STATUS = Object.freeze({
     MAX_CUSTOM_QUESTIONS: 5,
     MAX_INTENT_LENGTH: 300,
     MAX_BIO_LENGTH: 1000,
+    MAX_MESSAGE_LENGTH: 5000,
     
     // OTP limits
     OTP_EXPIRY_MINUTES: 10,
@@ -343,12 +427,16 @@ const USER_STATUS = Object.freeze({
     MATCH_ALREADY_EXISTS: 'MATCH_002',
     MATCH_INVALID_STATUS: 'MATCH_003',
     
-    // Subscription errors (1600-1699)
+    // Conversation errors (1600-1699)
+    CONVERSATION_NOT_FOUND: 'CONV_001',
+    CONVERSATION_NOT_PARTICIPANT: 'CONV_002',
+    
+    // Subscription errors (1700-1799)
     SUBSCRIPTION_REQUIRED: 'SUB_001',
     SUBSCRIPTION_EXPIRED: 'SUB_002',
     SUBSCRIPTION_LIMIT_REACHED: 'SUB_003',
     
-    // Validation errors (1700-1799)
+    // Validation errors (1800-1899)
     VALIDATION_ERROR: 'VAL_001',
     INVALID_INPUT: 'VAL_002',
     
@@ -363,8 +451,12 @@ const USER_STATUS = Object.freeze({
   // ============================================
   
   module.exports = {
+    // User constants
     USER_TYPES,
     USER_STATUS,
+    SUBSCRIPTION_TIERS,
+    
+    // Profile constants
     STARTUP_STAGES,
     ROLE_TYPES,
     RISK_APPETITES,
@@ -374,13 +466,34 @@ const USER_STATUS = Object.freeze({
     REMOTE_PREFERENCES,
     CURRENCIES,
     SCENARIO_OPTIONS,
+    
+    // Opening constants
     OPENING_STATUS,
+    
+    // Interest constants
     INTEREST_STATUS,
+    
+    // Match constants
     MATCH_STATUS,
+    
+    // Conversation constants
+    CONVERSATION_STATUS,
+    MESSAGE_TYPES,
+    ICE_BREAKER_PROMPTS,
+    
+    // Trial constants
     TRIAL_STATUS,
-    SUBSCRIPTION_TIERS,
+    TRIAL_DURATIONS,
+    CHECKIN_FREQUENCY,
+    TRIAL_OUTCOME,
+    
+    // Matching constants
     MATCHING_WEIGHTS,
+    
+    // Limits and pricing
     LIMITS,
     PRICING,
+    
+    // Error codes
     ERROR_CODES,
   };

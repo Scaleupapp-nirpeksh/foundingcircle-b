@@ -110,6 +110,17 @@ class ApiError extends Error {
     }
   
     /**
+     * Creates a 402 Payment Required error
+     * Used for subscription/upgrade prompts (even without actual payments)
+     * @param {string} [message='Upgrade required'] - Error message
+     * @param {Object} [options] - Additional options
+     * @returns {ApiError}
+     */
+    static paymentRequired(message = 'Upgrade required', options = {}) {
+      return new ApiError(402, message, { code: 'UPGRADE_REQUIRED', ...options });
+    }
+  
+    /**
      * Creates a 403 Forbidden error
      * @param {string} [message='Forbidden'] - Error message
      * @param {Object} [options] - Additional options
