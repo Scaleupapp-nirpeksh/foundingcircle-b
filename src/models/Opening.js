@@ -137,7 +137,7 @@ const openingSchema = new Schema(
         },
         message: 'Maximum 15 skills allowed',
       },
-      index: true,
+      
     },
 
     /**

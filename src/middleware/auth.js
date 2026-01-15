@@ -17,7 +17,7 @@ const { ERROR_CODES, USER_TYPES, USER_STATUS } = require('../constants');
 // ============================================
 
 /**
- * Extract token from request
+ * Extract access token from request
  * Checks Authorization header (Bearer token) and cookies
  * 
  * @param {Object} req - Express request object
@@ -31,21 +31,41 @@ const extractToken = (req) => {
   }
 
   // Check cookies as fallback
-  if (req.cookies && req.cookies.token) {
-    return req.cookies.token;
+  if (req.cookies && req.cookies.accessToken) {
+    return req.cookies.accessToken;
   }
 
   return null;
 };
 
 /**
- * Verify and decode JWT token
+ * Extract refresh token from request
  * 
- * @param {string} token - JWT token
+ * @param {Object} req - Express request object
+ * @returns {string|null} Refresh token or null
+ */
+const extractRefreshToken = (req) => {
+  // Check body first (for refresh endpoint)
+  if (req.body && req.body.refreshToken) {
+    return req.body.refreshToken;
+  }
+
+  // Check cookies as fallback
+  if (req.cookies && req.cookies.refreshToken) {
+    return req.cookies.refreshToken;
+  }
+
+  return null;
+};
+
+/**
+ * Verify and decode access token
+ * 
+ * @param {string} token - JWT access token
  * @returns {Object} Decoded token payload
  * @throws {AppError} If token is invalid or expired
  */
-const verifyToken = (token) => {
+const verifyAccessToken = (token) => {
   try {
     return jwt.verify(token, config.jwt.accessSecret);
   } catch (error) {
@@ -57,6 +77,50 @@ const verifyToken = (token) => {
     }
     throw AppError.unauthorized('Token verification failed', ERROR_CODES.AUTH_TOKEN_INVALID);
   }
+};
+
+/**
+ * Verify and decode refresh token
+ * 
+ * @param {string} token - JWT refresh token
+ * @returns {Object} Decoded token payload
+ * @throws {AppError} If token is invalid or expired
+ */
+const verifyRefreshToken = (token) => {
+  try {
+    return jwt.verify(token, config.jwt.refreshSecret);
+  } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      throw AppError.unauthorized('Refresh token has expired', ERROR_CODES.AUTH_TOKEN_EXPIRED);
+    }
+    if (error.name === 'JsonWebTokenError') {
+      throw AppError.unauthorized('Invalid refresh token', ERROR_CODES.AUTH_TOKEN_INVALID);
+    }
+    throw AppError.unauthorized('Refresh token verification failed', ERROR_CODES.AUTH_TOKEN_INVALID);
+  }
+};
+
+/**
+ * Generate access and refresh tokens for a user
+ * 
+ * @param {Object} user - User document
+ * @returns {Object} Object containing accessToken and refreshToken
+ */
+const generateTokens = (user) => {
+  const payload = {
+    userId: user._id,
+    userType: user.userType,
+  };
+
+  const accessToken = jwt.sign(payload, config.jwt.accessSecret, {
+    expiresIn: config.jwt.accessExpiresIn,
+  });
+
+  const refreshToken = jwt.sign(payload, config.jwt.refreshSecret, {
+    expiresIn: config.jwt.refreshExpiresIn,
+  });
+
+  return { accessToken, refreshToken };
 };
 
 // ============================================
@@ -89,7 +153,7 @@ const auth = asyncHandler(async (req, res, next) => {
   }
 
   // Verify token
-  const decoded = verifyToken(token);
+  const decoded = verifyAccessToken(token);
 
   // Find user
   const user = await User.findById(decoded.userId).select('-password');
@@ -170,7 +234,7 @@ const optionalAuth = asyncHandler(async (req, res, next) => {
   }
 
   try {
-    const decoded = verifyToken(token);
+    const decoded = verifyAccessToken(token);
     const user = await User.findById(decoded.userId).select('-password');
 
     if (user && user.status === USER_STATUS.ACTIVE) {
@@ -427,7 +491,10 @@ const rateLimit = (options) => {
 module.exports = {
   // Token utilities
   extractToken,
-  verifyToken,
+  extractRefreshToken,
+  verifyAccessToken,
+  verifyRefreshToken,
+  generateTokens,
   
   // Main auth middleware
   auth,
