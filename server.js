@@ -76,13 +76,29 @@ const startServer = async () => {
     
     // Step 2: Start HTTP server
     server.listen(PORT, HOST, () => {
+      const baseUrl = `http://localhost:${PORT}`;
+      const apiBase = `${baseUrl}/api/${config.apiVersion}`;
+
       console.log('\n========================================');
       console.log('🎉 FoundingCircle Backend Started!');
       console.log('========================================');
       console.log(`📍 Environment: ${config.env}`);
-      console.log(`🌐 Server:      http://localhost:${PORT}`);
-      console.log(`📚 API Docs:    http://localhost:${PORT}/api-docs`);
-      console.log(`❤️  Health:      http://localhost:${PORT}/health`);
+      console.log(`🌐 Server:      ${baseUrl}`);
+      console.log(`📚 API Docs:    ${baseUrl}/api-docs`);
+      console.log(`❤️  Health:      ${baseUrl}/health`);
+      console.log('========================================');
+      console.log('');
+      console.log('📡 Available API Endpoints:');
+      console.log('----------------------------------------');
+      console.log(`🔐 Auth:        ${apiBase}/auth`);
+      console.log(`👤 Users:       ${apiBase}/users`);
+      console.log(`📋 Profiles:    ${apiBase}/profiles`);
+      console.log(`📤 Uploads:     ${apiBase}/uploads`);
+      // Future endpoints - uncomment as they become available
+      // console.log(`💼 Openings:    ${apiBase}/openings`);
+      // console.log(`🤝 Matches:     ${apiBase}/matches`);
+      // console.log(`💬 Conversations: ${apiBase}/conversations`);
+      // console.log(`🧪 Trials:      ${apiBase}/trials`);
       console.log('========================================\n');
     });
 
