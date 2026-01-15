@@ -32,6 +32,7 @@ const http = require('http');
 const { config } = require('./src/config');
 const { connectDB, disconnectDB } = require('./src/config/database');
 const { initializeSocket } = require('./src/socket');
+const { scheduler } = require('./src/jobs');
 
 // We'll create app.js next - for now, create a placeholder
 let app;
@@ -78,7 +79,10 @@ const startServer = async () => {
     console.log('\n🚀 Starting FoundingCircle Backend...\n');
     await connectDB();
     
-    // Step 2: Start HTTP server
+    // Step 2: Initialize job scheduler
+    scheduler.initialize();
+
+    // Step 3: Start HTTP server
     server.listen(PORT, HOST, () => {
       const baseUrl = `http://localhost:${PORT}`;
       const apiBase = `${baseUrl}/api/${config.apiVersion}`;
@@ -153,15 +157,18 @@ process.on('unhandledRejection', (reason, promise) => {
 const gracefulShutdown = (signal) => {
   console.log(`\n📴 ${signal} received. Starting graceful shutdown...`);
   
+  // Stop job scheduler
+  scheduler.shutdown();
+
   // Stop accepting new connections
   server.close(async () => {
     console.log('✅ HTTP server closed');
-    
+
     try {
       // Close database connection
       await disconnectDB();
       console.log('✅ Database connection closed');
-      
+
       console.log('👋 Graceful shutdown complete');
       process.exit(0);
     } catch (error) {

@@ -18,6 +18,7 @@ const { config } = require('./config');
 const routes = require('./routes');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const { ApiResponse } = require('./utils');
+const { setupSwagger } = require('./docs');
 
 // ============================================
 // CREATE EXPRESS APP
@@ -83,6 +84,13 @@ app.get('/health', (req, res) => {
     },
   });
 });
+
+// ============================================
+// SWAGGER DOCUMENTATION
+// ============================================
+
+// Setup Swagger UI at /api-docs
+setupSwagger(app);
 
 // ============================================
 // API ROUTES
