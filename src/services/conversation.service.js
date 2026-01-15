@@ -14,13 +14,15 @@
 
 const { Conversation, Message, Interest, User } = require('../models');
 const { ApiError } = require('../utils');
-const { 
+const {
     CONVERSATION_STATUS,
     MESSAGE_TYPES,
     ICE_BREAKER_PROMPTS,
     INTEREST_STATUS,
 } = require('../constants');
 const logger = require('../utils/logger');
+const socketService = require('../socket/socketService');
+const notificationService = require('./notification.service');
 
 // ============================================
 // CONVERSATION CRUD
@@ -301,13 +303,44 @@ const sendMessage = async (conversationId, senderId, messageData) => {
   
   // Populate sender for response
   await message.populate('sender', 'name email avatarUrl');
-  
+
+  // ============================================
+  // REAL-TIME SOCKET EMISSIONS
+  // ============================================
+
+  // Emit new message to conversation room (excluding sender)
+  socketService.emitNewMessage(conversationId, message, senderId);
+
+  // Emit confirmation to sender
+  socketService.emitMessageSent(senderId, conversationId, message);
+
+  // Determine recipient
+  const recipientId = conversation.participants.find(
+    p => p.toString() !== senderId.toString()
+  );
+
+  // Create notification for recipient (if they're not in the conversation room)
+  if (recipientId) {
+    const sender = await User.findById(senderId).select('name avatarUrl');
+    try {
+      await notificationService.notifyNewMessage({
+        userId: recipientId,
+        sender: { _id: senderId, name: sender?.name || 'User', avatarUrl: sender?.avatarUrl },
+        conversation: { _id: conversationId },
+        messagePreview: message.content,
+      });
+    } catch (notifError) {
+      // Don't fail message send if notification fails
+      logger.warn('Failed to create message notification', { error: notifError.message });
+    }
+  }
+
   logger.info('Message sent', {
     messageId: message._id,
     conversationId,
     senderId,
   });
-  
+
   return message;
 };
 
@@ -417,13 +450,18 @@ const markMessagesAsRead = async (conversationId, userId, upToMessageId = null) 
   const result = await Message.updateMany(query, {
     $set: { readAt: new Date() },
   });
-  
+
+  // Emit read receipt via socket
+  if (result.modifiedCount > 0) {
+    socketService.emitMessagesRead(conversationId, userId, []);
+  }
+
   logger.info('Messages marked as read', {
     conversationId,
     userId,
     count: result.modifiedCount,
   });
-  
+
   return result.modifiedCount;
 };
 
@@ -579,11 +617,11 @@ const linkTrial = async (conversationId, trialId) => {
  */
 const sendTrialMessage = async (conversationId, messageType, content, metadata = {}) => {
   const conversation = await Conversation.findById(conversationId);
-  
+
   if (!conversation) {
     throw ApiError.conversationNotFound();
   }
-  
+
   const message = await Message.create({
     conversation: conversationId,
     messageType,
@@ -591,12 +629,24 @@ const sendTrialMessage = async (conversationId, messageType, content, metadata =
     isSystemMessage: true,
     metadata,
   });
-  
+
   // Update conversation
   conversation.lastMessage = message._id;
   conversation.lastMessageAt = new Date();
   await conversation.save();
-  
+
+  // Emit trial message to both participants via socket
+  socketService.emitToConversation(conversationId, 'new_message', {
+    conversationId,
+    message: {
+      _id: message._id,
+      content: message.content,
+      messageType: message.messageType,
+      isSystemMessage: true,
+      createdAt: message.createdAt,
+    },
+  });
+
   return message;
 };
 

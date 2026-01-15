@@ -14,13 +14,15 @@
 
 const { Interest, Opening, BuilderProfile, FounderProfile, User } = require('../models');
 const { ApiError } = require('../utils');
-const { 
-  USER_TYPES, 
+const {
+  USER_TYPES,
   INTEREST_STATUS,
   OPENING_STATUS,
   SUBSCRIPTION_TIERS,
 } = require('../constants');
 const logger = require('../utils/logger');
+const socketService = require('../socket/socketService');
+const notificationService = require('./notification.service');
 
 // ============================================
 // CONSTANTS
@@ -126,13 +128,38 @@ const expressInterest = async (builderId, openingId, options = {}) => {
   
   // Update builder profile interest count
   await builderProfile.incrementInterestsSent();
-  
+
+  // ============================================
+  // REAL-TIME NOTIFICATIONS
+  // ============================================
+
+  // Notify founder via socket
+  socketService.emitNewInterest(opening.founder.toString(), {
+    _id: interest._id,
+    builder: { _id: builderId, name: user.name, avatarUrl: user.avatarUrl },
+    opening: { _id: openingId, title: opening.title },
+    builderNote: options.note,
+    createdAt: interest.createdAt,
+  });
+
+  // Create notification for founder
+  try {
+    await notificationService.notifyNewInterest({
+      founderId: opening.founder,
+      builder: { _id: builderId, name: user.name, avatarUrl: user.avatarUrl },
+      opening: { _id: openingId, title: opening.title },
+      interestId: interest._id,
+    });
+  } catch (notifError) {
+    logger.warn('Failed to create interest notification', { error: notifError.message });
+  }
+
   logger.info('Interest expressed', {
     interestId: interest._id,
     builderId,
     openingId,
   });
-  
+
   return interest;
 };
 
@@ -264,13 +291,41 @@ const shortlistBuilder = async (founderId, interestId) => {
   if (founderProfile) {
     await founderProfile.incrementMatches();
   }
-  
+
+  // ============================================
+  // REAL-TIME NOTIFICATIONS
+  // ============================================
+
+  // Get founder info for notification
+  const founder = await User.findById(founderId).select('name avatarUrl');
+
+  // Notify builder via socket
+  socketService.emitBuilderShortlisted(interest.builder.toString(), {
+    interestId,
+    founderId,
+    founderName: founder?.name || 'A founder',
+    openingId: interest.opening._id,
+    openingTitle: interest.opening.title,
+  });
+
+  // Create notification for builder
+  try {
+    await notificationService.notifyShortlisted({
+      builderId: interest.builder,
+      founder: { _id: founderId, name: founder?.name, avatarUrl: founder?.avatarUrl },
+      opening: { _id: interest.opening._id, title: interest.opening.title },
+      interestId,
+    });
+  } catch (notifError) {
+    logger.warn('Failed to create shortlist notification', { error: notifError.message });
+  }
+
   logger.info('Builder shortlisted - mutual match created', {
     interestId,
     founderId,
     builderId: interest.builder,
   });
-  
+
   return interest;
 };
 

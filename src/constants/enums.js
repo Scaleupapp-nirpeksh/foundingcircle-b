@@ -347,7 +347,7 @@ const USER_TYPES = Object.freeze({
     // Connection
     CONNECTION: 'connection',
     DISCONNECT: 'disconnect',
-    
+
     // Chat
     JOIN_CONVERSATION: 'join_conversation',
     LEAVE_CONVERSATION: 'leave_conversation',
@@ -360,13 +360,21 @@ const USER_TYPES = Object.freeze({
     USER_STOPPED_TYPING: 'user_stopped_typing',
     MARK_READ: 'mark_read',
     MESSAGES_READ: 'messages_read',
-    
+
     // Notifications
     NEW_NOTIFICATION: 'new_notification',
+    UNREAD_COUNT_UPDATED: 'unread_count_updated',
+
+    // Interests & Matches
     NEW_MATCH: 'new_match',
     NEW_INTEREST: 'new_interest',
+    BUILDER_SHORTLISTED: 'builder_shortlisted',
+
+    // Trials
     TRIAL_UPDATE: 'trial_update',
-    
+    TRIAL_PROPOSED: 'trial_proposed',
+    TRIAL_ACCEPTED: 'trial_accepted',
+
     // Errors
     ERROR: 'error',
   });

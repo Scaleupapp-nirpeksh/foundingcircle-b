@@ -31,6 +31,7 @@ process.on('uncaughtException', (err) => {
 const http = require('http');
 const { config } = require('./src/config');
 const { connectDB, disconnectDB } = require('./src/config/database');
+const { initializeSocket } = require('./src/socket');
 
 // We'll create app.js next - for now, create a placeholder
 let app;
@@ -56,6 +57,9 @@ try {
 // SERVER SETUP
 // ============================================
 const server = http.createServer(app);
+
+// Initialize Socket.io
+const io = initializeSocket(server);
 
 // Server configuration
 const PORT = config.port;
@@ -84,21 +88,23 @@ const startServer = async () => {
       console.log('========================================');
       console.log(`📍 Environment: ${config.env}`);
       console.log(`🌐 Server:      ${baseUrl}`);
+      console.log(`🔌 WebSocket:   ws://localhost:${PORT}`);
       console.log(`📚 API Docs:    ${baseUrl}/api-docs`);
       console.log(`❤️  Health:      ${baseUrl}/health`);
       console.log('========================================');
       console.log('');
       console.log('📡 Available API Endpoints:');
       console.log('----------------------------------------');
-      console.log(`🔐 Auth:        ${apiBase}/auth`);
-      console.log(`👤 Users:       ${apiBase}/users`);
-      console.log(`📋 Profiles:    ${apiBase}/profiles`);
-      console.log(`📤 Uploads:     ${apiBase}/uploads`);
-      // Future endpoints - uncomment as they become available
-      // console.log(`💼 Openings:    ${apiBase}/openings`);
-      // console.log(`🤝 Matches:     ${apiBase}/matches`);
-      // console.log(`💬 Conversations: ${apiBase}/conversations`);
-      // console.log(`🧪 Trials:      ${apiBase}/trials`);
+      console.log(`🔐 Auth:          ${apiBase}/auth`);
+      console.log(`👤 Users:         ${apiBase}/users`);
+      console.log(`📋 Profiles:      ${apiBase}/profiles`);
+      console.log(`📤 Uploads:       ${apiBase}/uploads`);
+      console.log(`💼 Openings:      ${apiBase}/openings`);
+      console.log(`💕 Interests:     ${apiBase}/interests`);
+      console.log(`🤝 Matches:       ${apiBase}/matches`);
+      console.log(`💬 Conversations: ${apiBase}/conversations`);
+      console.log(`🧪 Trials:        ${apiBase}/trials`);
+      console.log(`🔔 Notifications: ${apiBase}/notifications`);
       console.log('========================================\n');
     });
 

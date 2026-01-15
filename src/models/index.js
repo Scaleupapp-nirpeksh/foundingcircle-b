@@ -43,6 +43,9 @@ const Message = require('./Message');
 // Trial model
 const Trial = require('./Trial');
 
+// Notification model
+const Notification = require('./Notification');
+
 /**
  * ScenarioResponse model - Working style compatibility quiz
  * Handles: 6 scenario responses, compatibility scoring
@@ -80,10 +83,9 @@ module.exports = {
   User,
   FounderProfile,
   BuilderProfile,
-  
+
   // Assessment models
   ScenarioResponse,
-  
 
   // Communication models
   Conversation,
@@ -91,7 +93,10 @@ module.exports = {
 
   // Trial model
   Trial,
-  
+
+  // Notification model
+  Notification,
+
   // Matching models
   Opening,
   Interest,
