@@ -2,11 +2,11 @@
  * @fileoverview Authentication Controller
  *
  * Handles all authentication-related HTTP endpoints:
- * - OTP request and verification
+ * - OTP request and verification (via SMS)
  * - Login/Registration via OTP
  * - Token refresh
  * - Logout
- * - Email existence check
+ * - Phone existence check
  *
  * @module controllers/auth
  */
@@ -25,18 +25,18 @@ const { ApiResponse, asyncHandler } = require('../utils');
  * @access Public
  *
  * @param {Object} req.body
- * @param {string} req.body.email - User email address
+ * @param {string} req.body.phone - User phone number (e.g., +919876543210 or 9876543210)
  * @param {string} [req.body.purpose='login'] - OTP purpose (login, register, reset)
  *
  * @returns {Object} OTP sent confirmation with expiry info
  */
 const requestOTP = asyncHandler(async (req, res) => {
-  const { email, purpose = 'login' } = req.body;
+  const { phone, purpose = 'login' } = req.body;
 
-  const result = await authService.sendOTP(email, purpose);
+  const result = await authService.sendOTP(phone, purpose);
 
   return ApiResponse.otpSent({
-    email: result.email,
+    phone: result.phone,
     expiresIn: result.expiresIn,
     purpose: result.purpose,
     // Include OTP in development for testing
@@ -51,16 +51,16 @@ const requestOTP = asyncHandler(async (req, res) => {
  * @access Public
  *
  * @param {Object} req.body
- * @param {string} req.body.email - User email address
+ * @param {string} req.body.phone - User phone number
  * @param {string} req.body.otp - OTP code to verify
- * @param {string} [req.body.userType] - User type (required for new users)
+ * @param {string} [req.body.userType] - User type (optional, can be set during onboarding)
  *
  * @returns {Object} User data and authentication tokens
  */
 const verifyOTPAndLogin = asyncHandler(async (req, res) => {
-  const { email, otp, userType } = req.body;
+  const { phone, otp, userType } = req.body;
 
-  const result = await authService.loginWithOTP(email, otp, userType);
+  const result = await authService.loginWithOTP(phone, otp, userType);
 
   // Choose appropriate response based on whether user is new
   if (result.user.isNewUser) {
@@ -136,12 +136,12 @@ const logout = asyncHandler(async (req, res) => {
  * @returns {Object} Current user data
  */
 const getCurrentUser = asyncHandler(async (req, res) => {
-  const { userId, email, userType } = req.user;
+  const { userId, phone, userType } = req.user;
 
   return ApiResponse.ok('User retrieved successfully', {
     user: {
       id: userId,
-      email,
+      phone,
       userType,
     },
   }).send(res);
@@ -152,22 +152,22 @@ const getCurrentUser = asyncHandler(async (req, res) => {
 // ============================================
 
 /**
- * Check if email exists in the system
+ * Check if phone number exists in the system
  *
- * @route POST /api/v1/auth/check-email
+ * @route POST /api/v1/auth/check-phone
  * @access Public
  *
  * @param {Object} req.body
- * @param {string} req.body.email - Email to check
+ * @param {string} req.body.phone - Phone number to check
  *
- * @returns {Object} Email existence status and user type if exists
+ * @returns {Object} Phone existence status and user type if exists
  */
-const checkEmail = asyncHandler(async (req, res) => {
-  const { email } = req.body;
+const checkPhone = asyncHandler(async (req, res) => {
+  const { phone } = req.body;
 
-  const result = await authService.checkEmailExists(email);
+  const result = await authService.checkPhoneExists(phone);
 
-  return ApiResponse.ok('Email check completed', result).send(res);
+  return ApiResponse.ok('Phone check completed', result).send(res);
 });
 
 // ============================================
@@ -180,5 +180,5 @@ module.exports = {
   refreshToken,
   logout,
   getCurrentUser,
-  checkEmail,
+  checkPhone,
 };

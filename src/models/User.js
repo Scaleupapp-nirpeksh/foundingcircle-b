@@ -31,12 +31,27 @@ const userSchema = new Schema(
     // ==========================================
     
     /**
-     * User's email address (unique identifier)
+     * Phone number for OTP authentication (primary identifier)
+     * Format: +919876543210 (E.164 format)
+     */
+    phone: {
+      type: String,
+      required: [true, 'Phone number is required'],
+      unique: true,
+      trim: true,
+      match: [
+        /^\+[1-9]\d{9,14}$/,
+        'Please provide a valid phone number with country code (e.g., +919876543210)',
+      ],
+      index: true,
+    },
+
+    /**
+     * User's email address (optional, can be added during onboarding)
      */
     email: {
       type: String,
-      required: [true, 'Email is required'],
-      unique: true,
+      sparse: true, // Allow multiple null values
       lowercase: true,
       trim: true,
       match: [
@@ -51,24 +66,9 @@ const userSchema = new Schema(
      */
     password: {
       type: String,
-      required: false, 
+      required: false,
       minlength: [8, 'Password must be at least 8 characters'],
       select: false, // Don't include in query results by default
-    },
-
-    /**
-     * Phone number for OTP authentication (optional)
-     * Format: +919876543210
-     */
-    phone: {
-      type: String,
-      sparse: true, // Allow multiple null values
-      trim: true,
-      match: [
-        /^\+[1-9]\d{9,14}$/,
-        'Please provide a valid phone number with country code',
-      ],
-      index: true,
     },
 
     /**
@@ -93,6 +93,7 @@ const userSchema = new Schema(
 
     /**
      * Type of user - determines available features
+     * Set during onboarding (not required at registration)
      */
     userType: {
       type: String,
@@ -100,7 +101,7 @@ const userSchema = new Schema(
         values: Object.values(USER_TYPES),
         message: 'User type must be FOUNDER, BUILDER, or ADMIN',
       },
-      required: [true, 'User type is required'],
+      default: null, // Will be set during onboarding
       index: true,
     },
 
@@ -433,7 +434,7 @@ userSchema.index({ createdAt: -1 });
 userSchema.index({ lastActiveAt: -1 });
 
 // Text index for search
-userSchema.index({ name: 'text', email: 'text' });
+userSchema.index({ name: 'text', phone: 'text' });
 
 // ============================================
 // VIRTUAL FIELDS

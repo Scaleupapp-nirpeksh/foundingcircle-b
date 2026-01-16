@@ -2,6 +2,7 @@
  * @fileoverview Authentication Routes
  *
  * Defines all authentication-related API endpoints.
+ * Uses phone number (SMS OTP) for authentication.
  *
  * @module routes/auth
  */
@@ -40,9 +41,10 @@ const refreshRateLimit = rateLimit({
 
 /**
  * @route   POST /api/v1/auth/otp/request
- * @desc    Request OTP for login/registration
+ * @desc    Request OTP for login/registration (sent via SMS)
  * @access  Public
- * @body    { email: string, purpose?: 'login' | 'register' | 'reset' }
+ * @body    { phone: string, purpose?: 'login' | 'register' | 'reset' }
+ * @example { "phone": "+919876543210" } or { "phone": "9876543210" }
  */
 router.post('/otp/request', otpRateLimit, authController.requestOTP);
 
@@ -50,7 +52,8 @@ router.post('/otp/request', otpRateLimit, authController.requestOTP);
  * @route   POST /api/v1/auth/otp/verify
  * @desc    Verify OTP and login/register user
  * @access  Public
- * @body    { email: string, otp: string, userType?: 'founder' | 'builder' }
+ * @body    { phone: string, otp: string, userType?: 'FOUNDER' | 'BUILDER' }
+ * @example { "phone": "+919876543210", "otp": "123456" }
  */
 router.post('/otp/verify', loginRateLimit, authController.verifyOTPAndLogin);
 
@@ -63,12 +66,13 @@ router.post('/otp/verify', loginRateLimit, authController.verifyOTPAndLogin);
 router.post('/token/refresh', refreshRateLimit, authController.refreshToken);
 
 /**
- * @route   POST /api/v1/auth/check-email
- * @desc    Check if email exists in the system
+ * @route   POST /api/v1/auth/check-phone
+ * @desc    Check if phone number exists in the system
  * @access  Public
- * @body    { email: string }
+ * @body    { phone: string }
+ * @example { "phone": "+919876543210" }
  */
-router.post('/check-email', authController.checkEmail);
+router.post('/check-phone', authController.checkPhone);
 
 // ============================================
 // PROTECTED ROUTES
