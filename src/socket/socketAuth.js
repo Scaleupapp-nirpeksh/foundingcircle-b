@@ -7,9 +7,9 @@
  */
 
 const jwt = require('jsonwebtoken');
-const { config } = require('../config');
-const { User } = require('../models');
-const { USER_STATUS } = require('../constants/enums');
+const { config } = require('../shared/config');
+const { User } = require('../modules/models');
+const { USER_STATUS } = require('../shared/constants/enums');
 
 /**
  * Socket authentication middleware

@@ -7,7 +7,7 @@
  * @module socket/socketService
  */
 
-const { SOCKET_EVENTS } = require('../constants/enums');
+const { SOCKET_EVENTS } = require('../shared/constants/enums');
 
 // ============================================
 // SOCKET SERVICE SINGLETON

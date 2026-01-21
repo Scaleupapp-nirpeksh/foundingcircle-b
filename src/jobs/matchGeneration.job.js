@@ -9,8 +9,8 @@
  * @module jobs/matchGeneration
  */
 
-const matchingService = require('../services/matching.service');
-const logger = require('../utils/logger');
+const matchingService = require('../modules/matching/services/matching.service');
+const logger = require('../shared/utils/logger');
 
 /**
  * Run the nightly match generation job

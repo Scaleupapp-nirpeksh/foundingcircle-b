@@ -12,7 +12,7 @@ const { socketAuth } = require('./socketAuth');
 const socketService = require('./socketService');
 const { registerConversationHandlers } = require('./handlers/conversationHandler');
 const { registerNotificationHandlers } = require('./handlers/notificationHandler');
-const { SOCKET_EVENTS } = require('../constants/enums');
+const { SOCKET_EVENTS } = require('../shared/constants/enums');
 
 /**
  * Initialize Socket.io with the HTTP server

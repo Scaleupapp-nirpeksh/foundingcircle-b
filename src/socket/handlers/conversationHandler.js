@@ -9,8 +9,8 @@
  * @module socket/handlers/conversationHandler
  */
 
-const { SOCKET_EVENTS } = require('../../constants/enums');
-const { Conversation } = require('../../models');
+const { SOCKET_EVENTS } = require('../../shared/constants/enums');
+const { Conversation } = require('../../modules/models');
 const socketService = require('../socketService');
 
 /**

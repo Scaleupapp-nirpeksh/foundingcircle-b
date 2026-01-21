@@ -8,8 +8,8 @@
  */
 
 const cron = require('node-cron');
-const logger = require('../utils/logger');
-const { config } = require('../config');
+const logger = require('../shared/utils/logger');
+const { config } = require('../shared/config');
 
 // Import individual jobs
 const matchGenerationJob = require('./matchGeneration.job');

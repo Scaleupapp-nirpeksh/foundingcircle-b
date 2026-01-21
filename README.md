@@ -41,18 +41,15 @@ Backend API for FoundingCircle - a platform that enables founders to find co-fou
 ```
 foundingcircle-backend/
 ├── src/
-│   ├── config/         # Configuration files
-│   ├── constants/      # Enums and messages
-│   ├── models/         # Mongoose schemas
-│   ├── validators/     # Request validation
-│   ├── middleware/     # Express middleware
-│   ├── services/       # Business logic
-│   ├── controllers/    # Request handlers
-│   ├── routes/         # API routes
-│   ├── socket/         # Socket.io handlers
-│   ├── jobs/           # Background jobs
-│   ├── utils/          # Utilities
-│   └── app.js          # Express app
+│   ├── modules/        # Feature modules (auth, profile, opening, etc.)
+│   │   ├── <feature>/  # controllers, services, models, routes per feature
+│   │   ├── models/     # Barrel export for all models
+│   │   └── routes/     # Central router mounting all module routes
+│   ├── shared/         # Cross-cutting pieces (config, constants, middleware, utils)
+│   ├── socket/         # Socket.io handlers and service
+│   ├── jobs/           # Background jobs and scheduler
+│   ├── docs/           # Swagger/OpenAPI docs
+│   └── app.js          # Express app wiring
 ├── .env.example        # Environment template
 ├── package.json        # Dependencies
 ├── server.js           # Entry point

@@ -29,8 +29,8 @@ process.on('uncaughtException', (err) => {
 // IMPORTS
 // ============================================
 const http = require('http');
-const { config } = require('./src/config');
-const { connectDB, disconnectDB } = require('./src/config/database');
+const { config } = require('./src/shared/config');
+const { connectDB, disconnectDB } = require('./src/shared/config/database');
 const { initializeSocket } = require('./src/socket');
 const { scheduler } = require('./src/jobs');
 

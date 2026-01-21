@@ -8,8 +8,8 @@
  * @module jobs/cleanup
  */
 
-const { Notification, User } = require('../models');
-const logger = require('../utils/logger');
+const { Notification, User } = require('../modules/models');
+const logger = require('../shared/utils/logger');
 
 // ============================================
 // OTP CLEANUP
@@ -27,7 +27,7 @@ const cleanupOTPs = async () => {
 
   try {
     // Import OTP model directly to access static method
-    const OTP = require('../models/OTP');
+    const OTP = require('../modules/auth/models/OTP');
 
     // Clean up OTPs older than 7 days
     const deletedCount = await OTP.cleanupOldRecords(7);

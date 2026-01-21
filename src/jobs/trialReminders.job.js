@@ -9,10 +9,10 @@
  * @module jobs/trialReminders
  */
 
-const trialService = require('../services/trial.service');
-const notificationService = require('../services/notification.service');
-const { Conversation } = require('../models');
-const logger = require('../utils/logger');
+const trialService = require('../modules/trial/services/trial.service');
+const notificationService = require('../modules/notification/services/notification.service');
+const { Conversation } = require('../modules/models');
+const logger = require('../shared/utils/logger');
 
 /**
  * Calculate days remaining for a trial

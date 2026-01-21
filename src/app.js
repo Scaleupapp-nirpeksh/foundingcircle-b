@@ -14,10 +14,10 @@ const compression = require('compression');
 const mongoSanitize = require('express-mongo-sanitize');
 const hpp = require('hpp');
 
-const { config } = require('./config');
-const routes = require('./routes');
-const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
-const { ApiResponse } = require('./utils');
+const { config } = require('./shared/config');
+const routes = require('./modules/routes');
+const { errorHandler, notFoundHandler } = require('./shared/middleware/errorHandler');
+const { ApiResponse } = require('./shared/utils');
 const { setupSwagger } = require('./docs');
 
 // ============================================
