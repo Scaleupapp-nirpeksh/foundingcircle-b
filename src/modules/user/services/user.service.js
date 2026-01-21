@@ -74,42 +74,69 @@ const getUserByEmail = async (email, options = {}) => {
 
 /**
  * Get user's associated profile (Founder or Builder)
- * 
+ * Considers activeRole first for dual-profile users, then falls back to userType
+ *
  * @param {Object} user - User document
  * @returns {Promise<Object|null>} Profile document or null
  */
 const getUserProfile = async (user) => {
-  if (user.userType === USER_TYPES.FOUNDER) {
-    return FounderProfile.findOne({ user: user._id });
+  // Check activeRole first (for dual-profile users)
+  const roleToCheck = user.activeRole || user.userType;
+
+  if (roleToCheck === 'FOUNDER' || roleToCheck === USER_TYPES.FOUNDER) {
+    const profile = await FounderProfile.findOne({ user: user._id });
+    if (profile) return profile;
   }
-  
-  if (user.userType === USER_TYPES.BUILDER) {
-    return BuilderProfile.findOne({ user: user._id });
+
+  if (roleToCheck === 'BUILDER' || roleToCheck === USER_TYPES.BUILDER) {
+    const profile = await BuilderProfile.findOne({ user: user._id });
+    if (profile) return profile;
   }
-  
+
+  // Fallback: try to find any existing profile
+  const founderProfile = await FounderProfile.findOne({ user: user._id });
+  if (founderProfile) return founderProfile;
+
+  const builderProfile = await BuilderProfile.findOne({ user: user._id });
+  if (builderProfile) return builderProfile;
+
   return null;
 };
 
 /**
  * Get user with full profile data
- * 
+ *
  * @param {string} userId - User ID
  * @returns {Promise<Object>} User with profile
  * @throws {ApiError} If user not found
  */
 const getUserWithProfile = async (userId) => {
   const user = await User.findById(userId);
-  
+
   if (!user) {
     throw ApiError.userNotFound();
   }
-  
+
+  // Get profile based on active role or user type
   const profile = await getUserProfile(user);
-  
+
+  // Get both profiles to determine which ones exist
+  const [founderProfile, builderProfile] = await Promise.all([
+    FounderProfile.findOne({ user: user._id }),
+    BuilderProfile.findOne({ user: user._id }),
+  ]);
+
   return {
-    user: user.toObject(),
+    user: {
+      ...user.toObject(),
+      hasFounderProfile: !!founderProfile,
+      hasBuilderProfile: !!builderProfile,
+    },
     profile: profile ? profile.toObject() : null,
     profileComplete: user.onboardingComplete,
+    hasFounderProfile: !!founderProfile,
+    hasBuilderProfile: !!builderProfile,
+    activeRole: user.activeRole,
   };
 };
 

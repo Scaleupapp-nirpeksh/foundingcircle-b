@@ -418,6 +418,9 @@ const loginWithOTP = async (phone, otp, userType = null) => {
       name: user.name,
       isNewUser,
       onboardingComplete: user.onboardingComplete,
+      hasFounderProfile: !!user.founderProfile,
+      hasBuilderProfile: !!user.builderProfile,
+      activeRole: user.activeRole,
     },
     tokens,
   };

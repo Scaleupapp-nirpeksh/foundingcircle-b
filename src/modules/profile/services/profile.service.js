@@ -59,16 +59,17 @@ const createFounderProfile = async (userId, profileData) => {
     user.userType = USER_TYPES.FOUNDER;
   }
   
-  // Check if onboarding should be marked complete
-  if (profile.isComplete && !user.onboardingComplete) {
+  // Mark onboarding as complete when profile is created
+  // (user has completed the profile creation flow)
+  if (!user.onboardingComplete) {
     user.onboardingComplete = true;
     user.onboardingCompletedAt = new Date();
   }
-  
+
   await user.save();
-  
+
   logger.info('Founder profile created', { userId, profileId: profile._id });
-  
+
   return profile;
 };
 
@@ -281,16 +282,17 @@ const createBuilderProfile = async (userId, profileData) => {
     user.userType = USER_TYPES.BUILDER;
   }
   
-  // Check if onboarding should be marked complete
-  if (profile.isComplete && !user.onboardingComplete) {
+  // Mark onboarding as complete when profile is created
+  // (user has completed the profile creation flow)
+  if (!user.onboardingComplete) {
     user.onboardingComplete = true;
     user.onboardingCompletedAt = new Date();
   }
-  
+
   await user.save();
-  
+
   logger.info('Builder profile created', { userId, profileId: profile._id });
-  
+
   return profile;
 };
 
