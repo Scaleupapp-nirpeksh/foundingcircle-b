@@ -531,6 +531,18 @@ userSchema.virtual('hasDualProfile').get(function () {
 // ============================================
 
 /**
+ * Remove null/empty email to allow sparse unique index to work
+ * Sparse indexes only skip documents where the field is MISSING,
+ * not where it's explicitly set to null
+ */
+userSchema.pre('save', function (next) {
+  if (this.email === null || this.email === undefined || this.email === '') {
+    this.email = undefined; // Remove the field entirely
+  }
+  next();
+});
+
+/**
  * Hash password before saving
  */
 userSchema.pre('save', async function (next) {

@@ -12,6 +12,7 @@
  */
 
 const authService = require('../services/auth.service');
+const userService = require('../../user/services/user.service');
 const { ApiResponse, asyncHandler } = require('../../../shared/utils');
 
 // ============================================
@@ -126,24 +127,39 @@ const logout = asyncHandler(async (req, res) => {
 });
 
 /**
- * Get current authenticated user
+ * Get current authenticated user with complete profile data
  *
  * @route GET /api/v1/auth/me
  * @access Private (requires authentication)
  *
  * @param {Object} req.user - Authenticated user from middleware
  *
- * @returns {Object} Current user data
+ * @returns {Object} Current user data with profile status
  */
 const getCurrentUser = asyncHandler(async (req, res) => {
-  const { userId, phone, userType } = req.user;
+  // Use req.userId set by auth middleware (or req.user._id)
+  const userId = req.userId || req.user._id;
+
+  // Get complete user data from database (not just from JWT)
+  const result = await userService.getUserWithProfile(userId);
 
   return ApiResponse.ok('User retrieved successfully', {
     user: {
-      id: userId,
-      phone,
-      userType,
+      id: result.user._id,
+      phone: result.user.phone,
+      email: result.user.email,
+      name: result.user.name,
+      userType: result.user.userType,
+      status: result.user.status,
+      isPhoneVerified: result.user.isPhoneVerified,
+      onboardingComplete: result.user.onboardingComplete,
+      activeRole: result.activeRole,
+      founderProfile: result.user.founderProfile,
+      builderProfile: result.user.builderProfile,
+      hasFounderProfile: result.hasFounderProfile,
+      hasBuilderProfile: result.hasBuilderProfile,
     },
+    profile: result.profile,
   }).send(res);
 });
 

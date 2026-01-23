@@ -29,6 +29,7 @@ router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
 router.use('/profiles', profileRoutes);
 router.use('/uploads', uploadRoutes);
+router.use('/upload', uploadRoutes); // Alias for /uploads (singular form)
 router.use('/openings', openingRoutes);
 router.use('/interests', interestRoutes);
 router.use('/matches', matchingRoutes);

@@ -96,6 +96,14 @@ router.get('/role/:roleType', auth, openingController.getOpeningsByRoleType);
 // ============================================
 
 /**
+ * @route   GET /api/v1/openings/discover
+ * @desc    Discover openings with filters (builder-friendly endpoint)
+ * @access  Private (requires complete profile)
+ * @query   { roleType?, skills[], startupStage?, minEquity?, maxEquity?, minHours?, maxHours?, remotePreference?, location?, search?, page?, limit?, sort?, status? }
+ */
+router.get('/discover', auth, requireCompleteProfile, openingController.searchOpenings);
+
+/**
  * @route   GET /api/v1/openings
  * @desc    Search openings with filters
  * @access  Private (requires complete profile)

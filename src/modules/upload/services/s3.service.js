@@ -127,8 +127,8 @@ const uploadFile = async ({ buffer, originalName, mimetype, userId, folder }) =>
       Key: key,
       Body: buffer,
       ContentType: mimetype,
-      // Make profile photos and pitch decks publicly readable
-      ACL: 'public-read',
+      // Note: ACL removed - use S3 bucket policy for public access instead
+      // Or use CloudFront for serving files
     });
 
     await s3Client.send(command);

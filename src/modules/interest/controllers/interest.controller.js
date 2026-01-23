@@ -102,6 +102,25 @@ const getTodayInterestCount = asyncHandler(async (req, res) => {
   return ApiResponse.ok('Today\'s interest count retrieved', stats).send(res);
 });
 
+/**
+ * Check if builder has already expressed interest in an opening
+ *
+ * @route GET /api/v1/interests/check/:openingId
+ * @access Private (Builders only)
+ *
+ * @param {string} req.params.openingId - Opening ID
+ *
+ * @returns {Object} Interest status
+ */
+const checkInterestByOpening = asyncHandler(async (req, res) => {
+  const builderId = req.user._id;
+  const { openingId } = req.params;
+
+  const result = await interestService.checkInterestByOpening(builderId, openingId);
+
+  return ApiResponse.ok('Interest check completed', result).send(res);
+});
+
 // ============================================
 // FOUNDER ACTIONS
 // ============================================
@@ -299,6 +318,7 @@ module.exports = {
   withdrawInterest,
   getBuilderInterests,
   getTodayInterestCount,
+  checkInterestByOpening,
 
   // Founder actions
   shortlistBuilder,

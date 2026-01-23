@@ -96,6 +96,20 @@ const uploadProfilePhoto = multer({
 }).single('profilePhoto');
 
 /**
+ * Avatar upload middleware (alias for profile photo with 'avatar' field name)
+ * - Single file upload
+ * - Max 5MB
+ * - Images only (JPEG, PNG, WebP)
+ */
+const uploadAvatar = multer({
+  storage,
+  limits: {
+    fileSize: config.upload.maxProfilePhotoSize,
+  },
+  fileFilter: imageFilter,
+}).single('avatar');
+
+/**
  * Pitch deck upload middleware
  * - Single file upload
  * - Max 50MB
@@ -234,6 +248,7 @@ const optionalFile = (req, res, next) => {
 module.exports = {
   // Pre-configured upload middleware
   uploadProfilePhoto: handleUpload(uploadProfilePhoto),
+  uploadAvatar: handleUpload(uploadAvatar),
   uploadPitchDeck: handleUpload(uploadPitchDeck),
   uploadDocument: handleUpload(uploadDocument),
   uploadAttachment: handleUpload(uploadAttachment),

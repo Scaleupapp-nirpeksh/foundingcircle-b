@@ -13,6 +13,7 @@ const uploadController = require('../controllers/upload.controller');
 const { auth, requireFounder } = require('../../../shared/middleware/auth');
 const {
   uploadProfilePhoto,
+  uploadAvatar,
   uploadPitchDeck,
   uploadDocument,
   uploadAttachment,
@@ -43,6 +44,31 @@ router.post(
  * @access  Private
  */
 router.delete('/profile-photo', auth, uploadController.deleteProfilePhoto);
+
+// ============================================
+// AVATAR ROUTES (Alias for profile-photo with 'avatar' field)
+// ============================================
+
+/**
+ * @route   POST /api/v1/uploads/avatar
+ * @desc    Upload avatar for current user (alias for profile-photo)
+ * @access  Private
+ * @body    multipart/form-data with 'avatar' field
+ */
+router.post(
+  '/avatar',
+  auth,
+  uploadAvatar,
+  requireFile,
+  uploadController.uploadProfilePhoto
+);
+
+/**
+ * @route   DELETE /api/v1/uploads/avatar
+ * @desc    Delete avatar for current user (alias for profile-photo)
+ * @access  Private
+ */
+router.delete('/avatar', auth, uploadController.deleteProfilePhoto);
 
 // ============================================
 // PITCH DECK ROUTES

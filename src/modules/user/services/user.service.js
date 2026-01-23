@@ -75,6 +75,7 @@ const getUserByEmail = async (email, options = {}) => {
 /**
  * Get user's associated profile (Founder or Builder)
  * Considers activeRole first for dual-profile users, then falls back to userType
+ * Uses the ObjectId references stored on the User document (source of truth)
  *
  * @param {Object} user - User document
  * @returns {Promise<Object|null>} Profile document or null
@@ -83,22 +84,31 @@ const getUserProfile = async (user) => {
   // Check activeRole first (for dual-profile users)
   const roleToCheck = user.activeRole || user.userType;
 
+  // Use direct ObjectId references from User document (more reliable)
   if (roleToCheck === 'FOUNDER' || roleToCheck === USER_TYPES.FOUNDER) {
-    const profile = await FounderProfile.findOne({ user: user._id });
-    if (profile) return profile;
+    if (user.founderProfile) {
+      const profile = await FounderProfile.findById(user.founderProfile);
+      if (profile) return profile;
+    }
   }
 
   if (roleToCheck === 'BUILDER' || roleToCheck === USER_TYPES.BUILDER) {
-    const profile = await BuilderProfile.findOne({ user: user._id });
-    if (profile) return profile;
+    if (user.builderProfile) {
+      const profile = await BuilderProfile.findById(user.builderProfile);
+      if (profile) return profile;
+    }
   }
 
-  // Fallback: try to find any existing profile
-  const founderProfile = await FounderProfile.findOne({ user: user._id });
-  if (founderProfile) return founderProfile;
+  // Fallback: try to find any existing profile using stored references
+  if (user.founderProfile) {
+    const founderProfile = await FounderProfile.findById(user.founderProfile);
+    if (founderProfile) return founderProfile;
+  }
 
-  const builderProfile = await BuilderProfile.findOne({ user: user._id });
-  if (builderProfile) return builderProfile;
+  if (user.builderProfile) {
+    const builderProfile = await BuilderProfile.findById(user.builderProfile);
+    if (builderProfile) return builderProfile;
+  }
 
   return null;
 };
@@ -117,25 +127,39 @@ const getUserWithProfile = async (userId) => {
     throw ApiError.userNotFound();
   }
 
+  // Debug logging
+  logger.info('getUserWithProfile called', {
+    userId,
+    activeRole: user.activeRole,
+    userType: user.userType,
+    founderProfileId: user.founderProfile,
+    builderProfileId: user.builderProfile,
+  });
+
   // Get profile based on active role or user type
   const profile = await getUserProfile(user);
 
-  // Get both profiles to determine which ones exist
-  const [founderProfile, builderProfile] = await Promise.all([
-    FounderProfile.findOne({ user: user._id }),
-    BuilderProfile.findOne({ user: user._id }),
-  ]);
+  logger.info('Profile fetched', {
+    userId,
+    profileFound: !!profile,
+    profileId: profile?._id,
+  });
+
+  // Check if profiles exist using the User document's references (source of truth)
+  // This is more reliable than querying Profile collections
+  const hasFounderProfile = !!user.founderProfile;
+  const hasBuilderProfile = !!user.builderProfile;
 
   return {
     user: {
       ...user.toObject(),
-      hasFounderProfile: !!founderProfile,
-      hasBuilderProfile: !!builderProfile,
+      hasFounderProfile,
+      hasBuilderProfile,
     },
     profile: profile ? profile.toObject() : null,
     profileComplete: user.onboardingComplete,
-    hasFounderProfile: !!founderProfile,
-    hasBuilderProfile: !!builderProfile,
+    hasFounderProfile,
+    hasBuilderProfile,
     activeRole: user.activeRole,
   };
 };
@@ -158,7 +182,7 @@ const getUserWithProfile = async (userId) => {
  */
 const updateUser = async (userId, updateData) => {
   // Fields that can be updated
-  const allowedFields = ['name', 'phone', 'location', 'avatarUrl', 'timezone'];
+  const allowedFields = ['name', 'phone', 'location', 'avatarUrl', 'profilePhoto', 'timezone'];
   
   // Filter to only allowed fields
   const filteredData = Object.keys(updateData)

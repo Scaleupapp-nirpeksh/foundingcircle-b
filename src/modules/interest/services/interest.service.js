@@ -687,6 +687,30 @@ const getTodayInterestCount = async (builderId) => {
 };
 
 // ============================================
+// CHECK INTEREST BY OPENING
+// ============================================
+
+/**
+ * Check if builder has already expressed interest in an opening
+ *
+ * @param {string} builderId - Builder's user ID
+ * @param {string} openingId - Opening ID
+ * @returns {Promise<Object>} Interest status and details
+ */
+const checkInterestByOpening = async (builderId, openingId) => {
+  const interest = await Interest.findOne({
+    builder: builderId,
+    opening: openingId,
+  }).lean();
+
+  return {
+    hasInterest: !!interest,
+    interest: interest || null,
+    status: interest?.status || null,
+  };
+};
+
+// ============================================
 // EXPORTS
 // ============================================
 
@@ -695,23 +719,24 @@ module.exports = {
   expressInterest,
   withdrawInterest,
   getBuilderInterests,
-  
+  checkInterestByOpening,
+
   // Founder actions
   shortlistBuilder,
   passOnBuilder,
   getFounderInterests,
   getPendingInterestsCount,
-  
+
   // Mutual matches
   getMutualMatches,
   checkMutualMatch,
   getMatchById,
   linkConversation,
-  
+
   // Analytics
   getInterestStats,
   getTodayInterestCount,
-  
+
   // Constants
   DAILY_INTEREST_LIMITS,
 };

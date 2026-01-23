@@ -37,6 +37,13 @@ router.get('/my', auth, requireBuilder, interestController.getBuilderInterests);
 router.get('/my/today', auth, requireBuilder, interestController.getTodayInterestCount);
 
 /**
+ * @route   GET /api/v1/interests/check/:openingId
+ * @desc    Check if builder has already expressed interest in an opening
+ * @access  Private (Builders only)
+ */
+router.get('/check/:openingId', auth, requireBuilder, interestController.checkInterestByOpening);
+
+/**
  * @route   POST /api/v1/interests/openings/:openingId
  * @desc    Express interest in an opening
  * @access  Private (Builders only, requires complete profile)
