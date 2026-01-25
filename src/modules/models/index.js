@@ -74,6 +74,18 @@ const Interest = require('../interest/models/Interest');
  */
 const Match = require('../matching/models/Match');
 
+/**
+ * ConnectionRequest model - Direct outreach between users
+ * Handles: connection requests, notes, acceptance/decline
+ */
+const { ConnectionRequest, CONNECTION_STATUS, CONNECTION_TYPE } = require('../connection/models/ConnectionRequest');
+
+/**
+ * TeamMember model - Track team roster for founders
+ * Handles: team members, auto-add from matches, manual entries
+ */
+const { TeamMember, TEAM_MEMBER_STATUS, TEAM_MEMBER_SOURCE } = require('../team/models/TeamMember');
+
 // ============================================
 // EXPORTS
 // ============================================
@@ -101,6 +113,16 @@ module.exports = {
   Opening,
   Interest,
   Match,
+
+  // Connection models
+  ConnectionRequest,
+  CONNECTION_STATUS,
+  CONNECTION_TYPE,
+
+  // Team models
+  TeamMember,
+  TEAM_MEMBER_STATUS,
+  TEAM_MEMBER_SOURCE,
 };
 
 // ============================================

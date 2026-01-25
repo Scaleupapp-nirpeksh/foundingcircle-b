@@ -46,9 +46,10 @@ const registerConversationHandlers = (socket, io) => {
         return;
       }
 
-      const isParticipant =
-        conversation.founder.toString() === userId ||
-        conversation.builder.toString() === userId;
+      // Check if user is in participants array (works for both interest-based and connection-based)
+      const isParticipant = conversation.participants.some(
+        p => p.toString() === userId
+      );
 
       if (!isParticipant) {
         socket.emit(SOCKET_EVENTS.ERROR, {

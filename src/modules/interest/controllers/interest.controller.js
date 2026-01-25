@@ -141,7 +141,64 @@ const shortlistBuilder = asyncHandler(async (req, res) => {
 
   const interest = await interestService.shortlistBuilder(founderId, id);
 
-  return ApiResponse.ok('Builder shortlisted - mutual match created!', { interest }).send(res);
+  return ApiResponse.ok('Builder shortlisted - chat enabled!', { interest }).send(res);
+});
+
+/**
+ * Propose a match to builder (after discussions)
+ *
+ * @route POST /api/v1/interests/:id/propose-match
+ * @access Private (Founders only)
+ *
+ * @param {string} req.params.id - Interest ID
+ *
+ * @returns {Object} Updated interest
+ */
+const proposeMatch = asyncHandler(async (req, res) => {
+  const founderId = req.user._id;
+  const { id } = req.params;
+
+  const interest = await interestService.proposeMatch(founderId, id);
+
+  return ApiResponse.ok('Match proposed to builder - awaiting their confirmation', { interest }).send(res);
+});
+
+/**
+ * Accept a match proposal (Builder accepts founder's match proposal)
+ *
+ * @route POST /api/v1/interests/:id/accept-match
+ * @access Private (Builders only)
+ *
+ * @param {string} req.params.id - Interest ID
+ *
+ * @returns {Object} Updated interest with confirmed match
+ */
+const acceptMatch = asyncHandler(async (req, res) => {
+  const builderId = req.user._id;
+  const { id } = req.params;
+
+  const interest = await interestService.acceptMatch(builderId, id);
+
+  return ApiResponse.ok('Match confirmed! You are now officially matched.', { interest }).send(res);
+});
+
+/**
+ * Decline a match proposal (Builder declines founder's match proposal)
+ *
+ * @route POST /api/v1/interests/:id/decline-match
+ * @access Private (Builders only)
+ *
+ * @param {string} req.params.id - Interest ID
+ *
+ * @returns {Object} Updated interest
+ */
+const declineMatch = asyncHandler(async (req, res) => {
+  const builderId = req.user._id;
+  const { id } = req.params;
+
+  const interest = await interestService.declineMatch(builderId, id);
+
+  return ApiResponse.ok('Match proposal declined', { interest }).send(res);
 });
 
 /**
@@ -319,9 +376,12 @@ module.exports = {
   getBuilderInterests,
   getTodayInterestCount,
   checkInterestByOpening,
+  acceptMatch,
+  declineMatch,
 
   // Founder actions
   shortlistBuilder,
+  proposeMatch,
   passOnBuilder,
   getFounderInterests,
   getPendingInterestsCount,

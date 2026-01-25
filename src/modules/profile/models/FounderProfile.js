@@ -48,6 +48,82 @@ const rangeSchema = new Schema(
 );
 
 /**
+ * Work experience sub-schema for founders
+ */
+const experienceSchema = new Schema(
+  {
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: [100, 'Title cannot exceed 100 characters'],
+    },
+    company: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: [100, 'Company name cannot exceed 100 characters'],
+    },
+    startDate: {
+      type: Date,
+      required: true,
+    },
+    endDate: {
+      type: Date,
+      default: null, // null means current
+    },
+    isCurrent: {
+      type: Boolean,
+      default: false,
+    },
+    description: {
+      type: String,
+      trim: true,
+      maxlength: [500, 'Description cannot exceed 500 characters'],
+    },
+    isStartupExperience: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  { _id: false }
+);
+
+/**
+ * Education sub-schema for founders
+ */
+const educationSchema = new Schema(
+  {
+    institution: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: [150, 'Institution name cannot exceed 150 characters'],
+    },
+    degree: {
+      type: String,
+      trim: true,
+      maxlength: [100, 'Degree cannot exceed 100 characters'],
+    },
+    field: {
+      type: String,
+      trim: true,
+      maxlength: [100, 'Field cannot exceed 100 characters'],
+    },
+    graduationYear: {
+      type: Number,
+      min: 1950,
+      max: 2100,
+    },
+    isCurrent: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  { _id: false }
+);
+
+/**
  * Social links sub-schema
  */
 const socialLinksSchema = new Schema(
@@ -449,6 +525,66 @@ const founderProfileSchema = new Schema(
     },
 
     // ==========================================
+    // EXPERIENCE & EDUCATION
+    // ==========================================
+
+    /**
+     * Work experience history
+     */
+    experience: {
+      type: [experienceSchema],
+      default: [],
+      validate: {
+        validator: function (v) {
+          return v.length <= 10;
+        },
+        message: 'Maximum 10 experience entries allowed',
+      },
+    },
+
+    /**
+     * Education history
+     */
+    education: {
+      type: [educationSchema],
+      default: [],
+      validate: {
+        validator: function (v) {
+          return v.length <= 5;
+        },
+        message: 'Maximum 5 education entries allowed',
+      },
+    },
+
+    /**
+     * Years of total experience
+     */
+    totalYearsExperience: {
+      type: Number,
+      min: 0,
+      max: 50,
+      default: null,
+    },
+
+    /**
+     * Previous startup experience count
+     */
+    previousStartupCount: {
+      type: Number,
+      min: 0,
+      max: 20,
+      default: 0,
+    },
+
+    /**
+     * Has previously exited a startup
+     */
+    hasPreviousExit: {
+      type: Boolean,
+      default: false,
+    },
+
+    // ==========================================
     // SOCIAL & LINKS
     // ==========================================
 
@@ -682,6 +818,43 @@ founderProfileSchema.virtual('teamSize').get(function () {
   return 1 + (this.existingCofounderCount || 0);
 });
 
+/**
+ * Calculate years of experience from experience array
+ */
+founderProfileSchema.virtual('calculatedYearsExperience').get(function () {
+  if (!this.experience || this.experience.length === 0) {
+    return this.totalYearsExperience || 0;
+  }
+
+  let totalMonths = 0;
+  this.experience.forEach(exp => {
+    const start = new Date(exp.startDate);
+    const end = exp.endDate ? new Date(exp.endDate) : new Date();
+    const months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
+    totalMonths += Math.max(0, months);
+  });
+
+  return Math.round(totalMonths / 12);
+});
+
+/**
+ * Check if founder has startup experience
+ */
+founderProfileSchema.virtual('hasStartupExperience').get(function () {
+  if (this.previousStartupCount > 0) return true;
+  if (this.experience && this.experience.some(exp => exp.isStartupExperience)) return true;
+  return false;
+});
+
+/**
+ * Get current position from experience
+ */
+founderProfileSchema.virtual('currentPosition').get(function () {
+  if (!this.experience || this.experience.length === 0) return null;
+  const current = this.experience.find(exp => exp.isCurrent);
+  return current || null;
+});
+
 // ============================================
 // PRE-SAVE MIDDLEWARE
 // ============================================
@@ -768,6 +941,12 @@ founderProfileSchema.methods.getPublicProfile = function () {
     teamSize: this.teamSize,
     isVerified: this.isVerified,
     socialLinks: this.stealthMode ? {} : this.socialLinks,
+    experience: this.stealthMode ? [] : this.experience,
+    education: this.stealthMode ? [] : this.education,
+    totalYearsExperience: this.calculatedYearsExperience,
+    previousStartupCount: this.previousStartupCount,
+    hasPreviousExit: this.hasPreviousExit,
+    hasStartupExperience: this.hasStartupExperience,
     createdAt: this.createdAt,
   };
 };

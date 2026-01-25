@@ -157,12 +157,26 @@ const USER_TYPES = Object.freeze({
   /**
    * Interest status (builder's interest in an opening)
    * @enum {string}
+   *
+   * Flow:
+   * 1. INTERESTED - Builder expresses interest
+   * 2. SHORTLISTED - Founder shortlists (chat enabled)
+   * 3. MATCH_PROPOSED - Founder proposes match after discussions
+   * 4. MATCHED - Builder accepts, true mutual match confirmed
+   *
+   * Alternative endings:
+   * - PASSED - Founder passed on builder
+   * - WITHDRAWN - Builder withdrew interest
+   * - MATCH_DECLINED - Builder declined match proposal
    */
   const INTEREST_STATUS = Object.freeze({
-    INTERESTED: 'INTERESTED',     // Builder expressed interest
-    SHORTLISTED: 'SHORTLISTED',   // Founder shortlisted
-    PASSED: 'PASSED',             // Founder passed
-    WITHDRAWN: 'WITHDRAWN',       // Builder withdrew
+    INTERESTED: 'INTERESTED',           // Builder expressed interest
+    SHORTLISTED: 'SHORTLISTED',         // Founder shortlisted (chat enabled)
+    MATCH_PROPOSED: 'MATCH_PROPOSED',   // Founder proposed match, awaiting builder confirmation
+    MATCHED: 'MATCHED',                 // Both parties confirmed - true mutual match
+    MATCH_DECLINED: 'MATCH_DECLINED',   // Builder declined the match proposal
+    PASSED: 'PASSED',                   // Founder passed
+    WITHDRAWN: 'WITHDRAWN',             // Builder withdrew
   });
   
   /**
@@ -326,6 +340,11 @@ const USER_TYPES = Object.freeze({
     NEW_MATCH: 'NEW_MATCH',
     NEW_INTEREST: 'NEW_INTEREST',
     SHORTLISTED: 'SHORTLISTED',
+    MATCH_PROPOSED: 'MATCH_PROPOSED',       // Founder proposed match to builder
+    MATCH_ACCEPTED: 'MATCH_ACCEPTED',       // Builder accepted match proposal
+    MATCH_DECLINED: 'MATCH_DECLINED',       // Builder declined match proposal
+    CONNECTION_REQUEST: 'CONNECTION_REQUEST', // New connection request received
+    CONNECTION_ACCEPTED: 'CONNECTION_ACCEPTED', // Connection request accepted
     NEW_MESSAGE: 'NEW_MESSAGE',
     TRIAL_PROPOSED: 'TRIAL_PROPOSED',
     TRIAL_ACCEPTED: 'TRIAL_ACCEPTED',

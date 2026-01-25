@@ -90,10 +90,31 @@ router.get(
 
 /**
  * @route   POST /api/v1/interests/:id/shortlist
- * @desc    Shortlist a builder (creates mutual match)
+ * @desc    Shortlist a builder (enables chat, but not a full match yet)
  * @access  Private (Founders only)
  */
 router.post('/:id/shortlist', auth, requireFounder, interestController.shortlistBuilder);
+
+/**
+ * @route   POST /api/v1/interests/:id/propose-match
+ * @desc    Propose a match to builder (after discussions)
+ * @access  Private (Founders only)
+ */
+router.post('/:id/propose-match', auth, requireFounder, interestController.proposeMatch);
+
+/**
+ * @route   POST /api/v1/interests/:id/accept-match
+ * @desc    Accept a match proposal from founder
+ * @access  Private (Builders only)
+ */
+router.post('/:id/accept-match', auth, requireBuilder, interestController.acceptMatch);
+
+/**
+ * @route   POST /api/v1/interests/:id/decline-match
+ * @desc    Decline a match proposal from founder
+ * @access  Private (Builders only)
+ */
+router.post('/:id/decline-match', auth, requireBuilder, interestController.declineMatch);
 
 /**
  * @route   POST /api/v1/interests/:id/pass

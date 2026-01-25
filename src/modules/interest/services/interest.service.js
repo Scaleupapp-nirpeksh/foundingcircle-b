@@ -23,6 +23,7 @@ const {
 const logger = require('../../../shared/utils/logger');
 const socketService = require('../../../socket/socketService');
 const notificationService = require('../../notification/services/notification.service');
+const teamService = require('../../team/services/team.service');
 
 // ============================================
 // CONSTANTS
@@ -249,47 +250,41 @@ const getBuilderInterests = async (builderId, options = {}) => {
 // ============================================
 
 /**
- * Shortlist a builder (Founder action - creates mutual match)
- * 
+ * Shortlist a builder (Founder action - enables chat, but NOT a full match yet)
+ *
+ * Flow: INTERESTED → SHORTLISTED (chat enabled) → MATCH_PROPOSED → MATCHED
+ *
  * @param {string} founderId - Founder's user ID
  * @param {string} interestId - Interest ID
- * @returns {Promise<Object>} Updated interest with match status
+ * @returns {Promise<Object>} Updated interest
  */
 const shortlistBuilder = async (founderId, interestId) => {
   const interest = await Interest.findById(interestId)
     .populate('opening')
     .populate('builderProfile');
-  
+
   if (!interest) {
     throw ApiError.notFound('Interest not found');
   }
-  
+
   // Verify founder owns the opening
   if (interest.founder.toString() !== founderId.toString()) {
     throw ApiError.forbidden('You can only shortlist builders for your own openings');
   }
-  
+
   if (interest.status !== INTEREST_STATUS.INTERESTED) {
     throw ApiError.badRequest(`Cannot shortlist - interest is ${interest.status}`);
   }
-  
-  // Update interest to shortlisted (this creates a mutual match)
+
+  // Update interest to shortlisted (chat enabled, but NOT a full match yet)
   interest.status = INTEREST_STATUS.SHORTLISTED;
   interest.shortlistedAt = new Date();
-  interest.isMutualMatch = true;
-  interest.matchedAt = new Date();
+  // Note: isMutualMatch stays false until builder accepts match proposal
   await interest.save();
-  
+
   // Update builder profile shortlist count
   if (interest.builderProfile) {
     await interest.builderProfile.incrementShortlists();
-    await interest.builderProfile.incrementMatches();
-  }
-  
-  // Update founder profile match count
-  const founderProfile = await FounderProfile.findOne({ user: founderId });
-  if (founderProfile) {
-    await founderProfile.incrementMatches();
   }
 
   // ============================================
@@ -320,10 +315,243 @@ const shortlistBuilder = async (founderId, interestId) => {
     logger.warn('Failed to create shortlist notification', { error: notifError.message });
   }
 
-  logger.info('Builder shortlisted - mutual match created', {
+  logger.info('Builder shortlisted', {
     interestId,
     founderId,
     builderId: interest.builder,
+  });
+
+  return interest;
+};
+
+/**
+ * Propose a match to builder (Founder action - after discussions)
+ *
+ * @param {string} founderId - Founder's user ID
+ * @param {string} interestId - Interest ID
+ * @returns {Promise<Object>} Updated interest
+ */
+const proposeMatch = async (founderId, interestId) => {
+  const interest = await Interest.findById(interestId)
+    .populate('opening')
+    .populate('builderProfile');
+
+  if (!interest) {
+    throw ApiError.notFound('Interest not found');
+  }
+
+  // Verify founder owns the opening
+  if (interest.founder.toString() !== founderId.toString()) {
+    throw ApiError.forbidden('You can only propose matches for your own openings');
+  }
+
+  if (interest.status !== INTEREST_STATUS.SHORTLISTED) {
+    throw ApiError.badRequest(`Cannot propose match - interest must be SHORTLISTED first (current: ${interest.status})`);
+  }
+
+  // Update interest to match proposed
+  interest.status = INTEREST_STATUS.MATCH_PROPOSED;
+  interest.matchProposedAt = new Date();
+  await interest.save();
+
+  // Get founder info for notification
+  const founder = await User.findById(founderId).select('name avatarUrl');
+
+  // Notify builder via socket
+  socketService.emitToUser(interest.builder.toString(), 'match_proposed', {
+    interestId,
+    founderId,
+    founderName: founder?.name || 'A founder',
+    openingId: interest.opening._id,
+    openingTitle: interest.opening.title,
+  });
+
+  // Create notification for builder
+  try {
+    await notificationService.createNotification({
+      recipient: interest.builder,
+      type: 'MATCH_PROPOSED',
+      title: 'Match Proposal!',
+      message: `${founder?.name || 'A founder'} wants to confirm you as a match for ${interest.opening.title}`,
+      data: {
+        interestId,
+        openingId: interest.opening._id,
+        founderId,
+      },
+    });
+  } catch (notifError) {
+    logger.warn('Failed to create match proposal notification', { error: notifError.message });
+  }
+
+  logger.info('Match proposed to builder', {
+    interestId,
+    founderId,
+    builderId: interest.builder,
+  });
+
+  return interest;
+};
+
+/**
+ * Accept a match proposal (Builder action)
+ *
+ * @param {string} builderId - Builder's user ID
+ * @param {string} interestId - Interest ID
+ * @returns {Promise<Object>} Updated interest with confirmed match
+ */
+const acceptMatch = async (builderId, interestId) => {
+  const interest = await Interest.findById(interestId)
+    .populate('opening')
+    .populate('builderProfile');
+
+  if (!interest) {
+    throw ApiError.notFound('Interest not found');
+  }
+
+  // Verify builder is the one who expressed interest
+  if (interest.builder.toString() !== builderId.toString()) {
+    throw ApiError.forbidden('You can only accept matches for your own interests');
+  }
+
+  if (interest.status !== INTEREST_STATUS.MATCH_PROPOSED) {
+    throw ApiError.badRequest(`Cannot accept match - no match proposal pending (current: ${interest.status})`);
+  }
+
+  // Update interest to matched - TRUE mutual match!
+  interest.status = INTEREST_STATUS.MATCHED;
+  interest.isMutualMatch = true;
+  interest.matchedAt = new Date();
+  interest.matchAcceptedAt = new Date();
+  await interest.save();
+
+  // Update builder profile match count
+  if (interest.builderProfile) {
+    await interest.builderProfile.incrementMatches();
+  }
+
+  // Update founder profile match count
+  const founderProfile = await FounderProfile.findOne({ user: interest.founder });
+  if (founderProfile) {
+    await founderProfile.incrementMatches();
+  }
+
+  // Auto-add builder to founder's team
+  try {
+    await teamService.addFromMatch(interest.founder, interest);
+    logger.info('Builder auto-added to team after match acceptance', {
+      founderId: interest.founder,
+      builderId,
+      interestId,
+    });
+  } catch (teamError) {
+    // Don't fail the match if team addition fails
+    logger.warn('Failed to auto-add builder to team', {
+      founderId: interest.founder,
+      builderId,
+      error: teamError.message,
+    });
+  }
+
+  // Get builder info for notification
+  const builder = await User.findById(builderId).select('name avatarUrl');
+
+  // Notify founder via socket
+  socketService.emitToUser(interest.founder.toString(), 'match_accepted', {
+    interestId,
+    builderId,
+    builderName: builder?.name || 'A builder',
+    openingId: interest.opening._id,
+    openingTitle: interest.opening.title,
+  });
+
+  // Create notification for founder
+  try {
+    await notificationService.createNotification({
+      recipient: interest.founder,
+      type: 'MATCH_ACCEPTED',
+      title: 'Match Confirmed!',
+      message: `${builder?.name || 'A builder'} accepted your match proposal for ${interest.opening.title}`,
+      data: {
+        interestId,
+        openingId: interest.opening._id,
+        builderId,
+      },
+    });
+  } catch (notifError) {
+    logger.warn('Failed to create match accepted notification', { error: notifError.message });
+  }
+
+  logger.info('Match accepted - mutual match confirmed', {
+    interestId,
+    founderId: interest.founder,
+    builderId,
+  });
+
+  return interest;
+};
+
+/**
+ * Decline a match proposal (Builder action)
+ *
+ * @param {string} builderId - Builder's user ID
+ * @param {string} interestId - Interest ID
+ * @returns {Promise<Object>} Updated interest
+ */
+const declineMatch = async (builderId, interestId) => {
+  const interest = await Interest.findById(interestId)
+    .populate('opening');
+
+  if (!interest) {
+    throw ApiError.notFound('Interest not found');
+  }
+
+  // Verify builder is the one who expressed interest
+  if (interest.builder.toString() !== builderId.toString()) {
+    throw ApiError.forbidden('You can only decline matches for your own interests');
+  }
+
+  if (interest.status !== INTEREST_STATUS.MATCH_PROPOSED) {
+    throw ApiError.badRequest(`Cannot decline match - no match proposal pending (current: ${interest.status})`);
+  }
+
+  // Update interest to match declined (goes back to shortlisted state for further discussions)
+  interest.status = INTEREST_STATUS.MATCH_DECLINED;
+  interest.matchDeclinedAt = new Date();
+  await interest.save();
+
+  // Get builder info for notification
+  const builder = await User.findById(builderId).select('name avatarUrl');
+
+  // Notify founder via socket
+  socketService.emitToUser(interest.founder.toString(), 'match_declined', {
+    interestId,
+    builderId,
+    builderName: builder?.name || 'A builder',
+    openingId: interest.opening._id,
+    openingTitle: interest.opening.title,
+  });
+
+  // Create notification for founder
+  try {
+    await notificationService.createNotification({
+      recipient: interest.founder,
+      type: 'MATCH_DECLINED',
+      title: 'Match Declined',
+      message: `${builder?.name || 'A builder'} declined your match proposal for ${interest.opening.title}`,
+      data: {
+        interestId,
+        openingId: interest.opening._id,
+        builderId,
+      },
+    });
+  } catch (notifError) {
+    logger.warn('Failed to create match declined notification', { error: notifError.message });
+  }
+
+  logger.info('Match declined by builder', {
+    interestId,
+    founderId: interest.founder,
+    builderId,
   });
 
   return interest;
@@ -720,9 +948,12 @@ module.exports = {
   withdrawInterest,
   getBuilderInterests,
   checkInterestByOpening,
+  acceptMatch,
+  declineMatch,
 
   // Founder actions
   shortlistBuilder,
+  proposeMatch,
   passOnBuilder,
   getFounderInterests,
   getPendingInterestsCount,

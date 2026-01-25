@@ -459,6 +459,7 @@ const searchBuilders = asyncHandler(async (req, res) => {
     page: parseInt(page, 10),
     limit: parseInt(limit, 10),
     sort,
+    requesterId: req.user._id, // For scenario compatibility calculation
   };
 
   const result = await profileService.searchBuilderProfiles(filters, options);
@@ -511,9 +512,153 @@ const searchFounders = asyncHandler(async (req, res) => {
     page: parseInt(page, 10),
     limit: parseInt(limit, 10),
     sort,
+    requesterId: req.user._id, // For scenario compatibility calculation
   };
 
   const result = await profileService.searchFounderProfiles(filters, options);
+
+  return ApiResponse.paginated(
+    result.profiles,
+    result.pagination,
+    'Founder profiles retrieved successfully'
+  ).send(res);
+});
+
+// ============================================
+// DISCOVER (BROWSE) PROFILES
+// ============================================
+
+/**
+ * Discover/browse builder profiles with text search
+ *
+ * @route GET /api/v1/profiles/builder/discover
+ * @access Private
+ *
+ * @param {string} [req.query.search] - Text search (name, headline, skills)
+ * @param {number} [req.query.minHours] - Minimum hours per week
+ * @param {number} [req.query.maxHours] - Maximum hours per week
+ * @param {string[]} [req.query.skills] - Filter by skills
+ * @param {string} [req.query.riskAppetite] - Filter by risk appetite
+ * @param {string[]} [req.query.rolesInterested] - Filter by roles
+ * @param {string} [req.query.remotePreference] - Filter by remote preference
+ * @param {string} [req.query.experienceLevel] - Filter by experience level
+ * @param {string} [req.query.location] - Filter by location
+ * @param {boolean} [req.query.isVisible] - Filter by visibility
+ * @param {string} [req.query.sort] - Sort option (newest, oldest, lastActive)
+ * @param {number} [req.query.page=1] - Page number
+ * @param {number} [req.query.limit=20] - Items per page
+ *
+ * @returns {Object} Paginated builder profiles
+ */
+const discoverBuilders = asyncHandler(async (req, res) => {
+  const {
+    search,
+    minHours,
+    maxHours,
+    skills,
+    riskAppetite,
+    rolesInterested,
+    remotePreference,
+    experienceLevel,
+    location,
+    isVisible,
+    isOpenToOpportunities,
+    page = 1,
+    limit = 20,
+    sort = 'newest',
+  } = req.query;
+
+  const filters = {};
+  if (search) filters.search = search;
+  if (minHours !== undefined) filters.minHours = minHours;
+  if (maxHours !== undefined) filters.maxHours = maxHours;
+  if (skills) filters.skills = Array.isArray(skills) ? skills : [skills];
+  if (riskAppetite) filters.riskAppetite = riskAppetite;
+  if (rolesInterested) {
+    filters.rolesInterested = Array.isArray(rolesInterested) ? rolesInterested : [rolesInterested];
+  }
+  if (remotePreference) filters.remotePreference = remotePreference;
+  if (experienceLevel) filters.experienceLevel = experienceLevel;
+  if (location) filters.location = location;
+  if (isVisible !== undefined) filters.isVisible = isVisible;
+  if (isOpenToOpportunities !== undefined) filters.isOpenToOpportunities = isOpenToOpportunities;
+
+  const options = {
+    page: parseInt(page, 10),
+    limit: parseInt(limit, 10),
+    sort,
+    requesterId: req.user._id,
+  };
+
+  const result = await profileService.discoverBuilderProfiles(filters, options);
+
+  return ApiResponse.paginated(
+    result.profiles,
+    result.pagination,
+    'Builder profiles retrieved successfully'
+  ).send(res);
+});
+
+/**
+ * Discover/browse founder profiles with text search
+ *
+ * @route GET /api/v1/profiles/founder/discover
+ * @access Private
+ *
+ * @param {string} [req.query.search] - Text search (startup name, tagline, description)
+ * @param {string} [req.query.startupStage] - Filter by startup stage
+ * @param {string[]} [req.query.rolesSeeking] - Filter by roles offered
+ * @param {string[]} [req.query.industry] - Filter by industry
+ * @param {number} [req.query.minEquity] - Minimum equity offered
+ * @param {number} [req.query.maxEquity] - Maximum equity offered
+ * @param {string} [req.query.remotePreference] - Filter by remote preference
+ * @param {string} [req.query.location] - Filter by location
+ * @param {boolean} [req.query.isVisible] - Filter by visibility
+ * @param {string} [req.query.sort] - Sort option (newest, oldest, lastActive)
+ * @param {number} [req.query.page=1] - Page number
+ * @param {number} [req.query.limit=20] - Items per page
+ *
+ * @returns {Object} Paginated founder profiles
+ */
+const discoverFounders = asyncHandler(async (req, res) => {
+  const {
+    search,
+    startupStage,
+    rolesSeeking,
+    industry,
+    minEquity,
+    maxEquity,
+    remotePreference,
+    location,
+    isVisible,
+    page = 1,
+    limit = 20,
+    sort = 'newest',
+  } = req.query;
+
+  const filters = {};
+  if (search) filters.search = search;
+  if (startupStage) filters.startupStage = startupStage;
+  if (rolesSeeking) {
+    filters.rolesSeeking = Array.isArray(rolesSeeking) ? rolesSeeking : [rolesSeeking];
+  }
+  if (industry) {
+    filters.industry = Array.isArray(industry) ? industry : [industry];
+  }
+  if (minEquity !== undefined) filters.minEquity = minEquity;
+  if (maxEquity !== undefined) filters.maxEquity = maxEquity;
+  if (remotePreference) filters.remotePreference = remotePreference;
+  if (location) filters.location = location;
+  if (isVisible !== undefined) filters.isVisible = isVisible;
+
+  const options = {
+    page: parseInt(page, 10),
+    limit: parseInt(limit, 10),
+    sort,
+    requesterId: req.user._id,
+  };
+
+  const result = await profileService.discoverFounderProfiles(filters, options);
 
   return ApiResponse.paginated(
     result.profiles,
@@ -560,4 +705,8 @@ module.exports = {
   // Search & discovery
   searchBuilders,
   searchFounders,
+
+  // Discover (browse)
+  discoverBuilders,
+  discoverFounders,
 };

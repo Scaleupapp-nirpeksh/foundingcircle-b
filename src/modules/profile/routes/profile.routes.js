@@ -87,6 +87,14 @@ router.patch('/founder/me', auth, profileController.updateMyFounderProfile);
 router.get('/founder/me/completion', auth, profileController.getFounderProfileCompletion);
 
 /**
+ * @route   GET /api/v1/profiles/founder/discover
+ * @desc    Discover/browse founder profiles with text search
+ * @access  Private
+ * @query   { search?, startupStage?, rolesSeeking[]?, industry[]?, minEquity?, maxEquity?, remotePreference?, location?, isVisible?, sort?, page?, limit? }
+ */
+router.get('/founder/discover', auth, profileController.discoverFounders);
+
+/**
  * @route   GET /api/v1/profiles/founder/:id
  * @desc    Get founder profile by ID
  * @access  Private
@@ -146,6 +154,14 @@ router.patch('/builder/me', auth, profileController.updateMyBuilderProfile);
  * @access  Private
  */
 router.get('/builder/me/completion', auth, profileController.getBuilderProfileCompletion);
+
+/**
+ * @route   GET /api/v1/profiles/builder/discover
+ * @desc    Discover/browse builder profiles with text search
+ * @access  Private
+ * @query   { search?, minHours?, maxHours?, skills[]?, riskAppetite?, rolesInterested[]?, remotePreference?, experienceLevel?, location?, isVisible?, isOpenToOpportunities?, sort?, page?, limit? }
+ */
+router.get('/builder/discover', auth, profileController.discoverBuilders);
 
 /**
  * @route   GET /api/v1/profiles/builder/:id

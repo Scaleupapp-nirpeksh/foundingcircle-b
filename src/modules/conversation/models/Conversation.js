@@ -34,22 +34,20 @@ const conversationSchema = new Schema(
     }],
 
     /**
-     * The founder in the conversation
+     * The founder in the conversation (required for interest-based conversations)
      */
     founder: {
       type: Schema.Types.ObjectId,
       ref: 'User',
-      required: [true, 'Founder reference is required'],
       index: true,
     },
 
     /**
-     * The builder in the conversation
+     * The builder in the conversation (required for interest-based conversations)
      */
     builder: {
       type: Schema.Types.ObjectId,
       ref: 'User',
-      required: [true, 'Builder reference is required'],
       index: true,
     },
 
@@ -59,11 +57,20 @@ const conversationSchema = new Schema(
 
     /**
      * Reference to the interest/match that created this conversation
+     * Required for interest-based conversations, null for connection-based
      */
     interest: {
       type: Schema.Types.ObjectId,
       ref: 'Interest',
-      required: [true, 'Interest reference is required'],
+    },
+
+    /**
+     * Reference to the connection request that created this conversation
+     * Required for connection-based conversations, null for interest-based
+     */
+    connectionRequest: {
+      type: Schema.Types.ObjectId,
+      ref: 'ConnectionRequest',
     },
 
     /**
@@ -192,7 +199,22 @@ const conversationSchema = new Schema(
 conversationSchema.index({ participants: 1, status: 1 });
 conversationSchema.index({ founder: 1, status: 1, lastMessageAt: -1 });
 conversationSchema.index({ builder: 1, status: 1, lastMessageAt: -1 });
-conversationSchema.index({ interest: 1 }, { unique: true });
+conversationSchema.index({ interest: 1 }, { unique: true, sparse: true });
+conversationSchema.index({ connectionRequest: 1 }, { unique: true, sparse: true });
+
+// ============================================
+// PRE-SAVE VALIDATION
+// ============================================
+
+/**
+ * Validate that either interest or connectionRequest is provided
+ */
+conversationSchema.pre('save', function (next) {
+  if (!this.interest && !this.connectionRequest) {
+    return next(new Error('Either interest or connectionRequest reference is required'));
+  }
+  next();
+});
 
 // ============================================
 // VIRTUAL FIELDS

@@ -12,7 +12,7 @@
  * @module services/conversation
  */
 
-const { Conversation, Message, Interest, User } = require('../../models');
+const { Conversation, Message, Interest, User, FounderProfile, BuilderProfile } = require('../../models');
 const { ApiError } = require('../../../shared/utils');
 const {
     CONVERSATION_STATUS,
@@ -42,11 +42,17 @@ const createConversationFromMatch = async (interestId) => {
       throw ApiError.notFound('Match not found');
     }
     
-    // Check if interest is shortlisted (which means mutual match per PRD)
-    const isMutualMatch = interest.isMutualMatch || interest.status === INTEREST_STATUS.SHORTLISTED;
-    
-    if (!isMutualMatch) {
-      throw ApiError.forbidden('Conversation can only be created for mutual matches');
+    // Check if interest is at least shortlisted (chat enabled from shortlist onwards)
+    // Statuses that allow chat: SHORTLISTED, MATCH_PROPOSED, MATCHED
+    const chatEnabledStatuses = [
+      INTEREST_STATUS.SHORTLISTED,
+      INTEREST_STATUS.MATCH_PROPOSED,
+      INTEREST_STATUS.MATCHED,
+    ];
+    const canChat = interest.isMutualMatch || chatEnabledStatuses.includes(interest.status);
+
+    if (!canChat) {
+      throw ApiError.forbidden('Conversation can only be created after being shortlisted');
     }
     
     // Check if conversation already exists
@@ -133,49 +139,78 @@ const getConversationById = async (conversationId, userId) => {
  */
 const getUserConversations = async (userId, options = {}) => {
   const { status, page = 1, limit = 20 } = options;
-  
+
   const query = {
     participants: userId,
   };
-  
+
   if (status) {
     query.status = status;
   } else {
     // By default, exclude archived
     query.status = { $ne: CONVERSATION_STATUS.ARCHIVED };
   }
-  
+
   const skip = (page - 1) * limit;
-  
+
   const [conversations, total] = await Promise.all([
     Conversation.find(query)
-      .populate('founder', 'name email avatarUrl')
-      .populate('builder', 'name email avatarUrl')
+      .populate('participants', 'name email profilePhoto userType activeRole')
+      .populate('founder', 'name email profilePhoto userType activeRole')
+      .populate('builder', 'name email profilePhoto userType activeRole')
       .populate('opening', 'title roleType')
       .populate('lastMessage')
       .populate('trial', 'status')
+      .populate('connectionRequest', 'connectionType intent note')
       .sort({ lastMessageAt: -1, createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .lean(),
     Conversation.countDocuments(query),
   ]);
-  
-  // Add unread count for each conversation
-  const conversationsWithUnread = await Promise.all(
+
+  // Add unread count and enrich with profile details for each conversation
+  const enrichedConversations = await Promise.all(
     conversations.map(async (conv) => {
+      // Get unread count
       const unreadCount = await Message.countDocuments({
         conversation: conv._id,
         sender: { $ne: userId },
         readAt: null,
         isSystemMessage: false,
       });
-      return { ...conv, unreadCount };
+
+      // Find the other participant (not the current user)
+      const otherParticipant = conv.participants.find(
+        p => p._id.toString() !== userId.toString()
+      );
+
+      let otherParticipantProfile = null;
+      if (otherParticipant) {
+        const participantType = (otherParticipant.activeRole || otherParticipant.userType || '').toLowerCase();
+
+        if (participantType === 'builder') {
+          otherParticipantProfile = await BuilderProfile.findOne({ user: otherParticipant._id })
+            .select('displayName headline bio skills location')
+            .lean();
+        } else if (participantType === 'founder') {
+          otherParticipantProfile = await FounderProfile.findOne({ user: otherParticipant._id })
+            .select('startupName tagline description industry location')
+            .lean();
+        }
+      }
+
+      return {
+        ...conv,
+        unreadCount,
+        otherParticipant,
+        otherParticipantProfile,
+      };
     })
   );
-  
+
   return {
-    conversations: conversationsWithUnread,
+    conversations: enrichedConversations,
     pagination: {
       page,
       limit,

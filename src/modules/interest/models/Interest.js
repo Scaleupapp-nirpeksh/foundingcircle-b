@@ -321,6 +321,30 @@ const interestSchema = new Schema(
     },
 
     /**
+     * When founder proposed a match (two-way confirmation flow)
+     */
+    matchProposedAt: {
+      type: Date,
+      default: null,
+    },
+
+    /**
+     * When builder accepted the match proposal
+     */
+    matchAcceptedAt: {
+      type: Date,
+      default: null,
+    },
+
+    /**
+     * When builder declined the match proposal
+     */
+    matchDeclinedAt: {
+      type: Date,
+      default: null,
+    },
+
+    /**
      * When conversation was started
      */
     conversationStartedAt: {
