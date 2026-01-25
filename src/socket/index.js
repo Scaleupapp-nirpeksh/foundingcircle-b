@@ -21,10 +21,32 @@ const { SOCKET_EVENTS } = require('../shared/constants/enums');
  * @returns {Object} Socket.io server instance
  */
 const initializeSocket = (server) => {
+  // Parse CORS origins from environment
+  const getAllowedOrigins = () => {
+    const corsOrigin = process.env.CORS_ORIGIN;
+    if (!corsOrigin) return '*';
+    return corsOrigin.split(',').map(o => o.trim());
+  };
+
   // Create Socket.io server with CORS configuration
   const io = new Server(server, {
     cors: {
-      origin: process.env.CORS_ORIGIN || '*',
+      origin: (origin, callback) => {
+        // Allow requests with no origin (mobile apps, curl, etc.)
+        if (!origin) return callback(null, true);
+
+        const allowedOrigins = getAllowedOrigins();
+
+        // If wildcard, allow all
+        if (allowedOrigins === '*') return callback(null, true);
+
+        // Check if origin is allowed or is a lovable.app subdomain
+        if (allowedOrigins.includes(origin) || origin.endsWith('.lovable.app')) {
+          return callback(null, true);
+        }
+
+        return callback(new Error('Not allowed by CORS'));
+      },
       methods: ['GET', 'POST'],
       credentials: true,
     },
